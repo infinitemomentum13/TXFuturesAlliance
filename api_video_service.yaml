@@ -1,0 +1,1093 @@
+openapi: 3.0.3
+info:
+  title: TX Futures Alliance - Video Service API
+  description: |
+    API for video upload, AI/ML analysis, highlight detection, and recruitment
+    reel generation.
+    
+    **Key Features**:
+    - Multipart video upload with resumable support
+    - AI-powered player identification and skill assessment
+    - Automatic highlight detection
+    - Recruitment reel compilation
+    - Privacy controls and consent management
+  version: 1.0.0
+
+servers:
+  - url: https://api.txfuturesalliance.org/v1
+  - url: https://staging-api.txfuturesalliance.org/v1
+
+tags:
+  - name: Video Uploads
+    description: Video file upload and management
+  - name: Video Analysis
+    description: AI/ML video analysis
+  - name: Highlights
+    description: Highlight detection and tagging
+  - name: Recruitment Reels
+    description: Compiled recruitment videos
+  - name: Performance Timeline
+    description: Player development tracking
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    VideoUpload:
+      type: object
+      required:
+        - video_id
+        - student_id
+        - video_type
+        - upload_date
+        - file_size_bytes
+        - storage_url
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        video_type:
+          type: string
+          enum: [full_match, highlight_reel, drill, scrimmage, training, trial, other]
+        sport:
+          type: string
+          default: "Soccer"
+        event_name:
+          type: string
+          maxLength: 300
+          example: "State Championship - Semifinals"
+        event_date:
+          type: string
+          format: date
+        event_location:
+          type: string
+          example: "FC Brownsville Stadium"
+        opponent:
+          type: string
+          example: "Valley United FC"
+        match_result:
+          type: string
+          example: "Win 3-1"
+        upload_date:
+          type: string
+          format: date-time
+        uploaded_by:
+          type: string
+          format: uuid
+        uploader_role:
+          type: string
+          example: "coach"
+        original_filename:
+          type: string
+        file_size_bytes:
+          type: integer
+          format: int64
+        file_size_mb:
+          type: number
+          format: decimal
+          readOnly: true
+        duration_seconds:
+          type: integer
+        duration_formatted:
+          type: string
+          example: "01:45:23"
+        resolution:
+          type: string
+          example: "1920x1080"
+        frame_rate:
+          type: number
+          example: 30.0
+        storage_url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+          format: uri
+        transcoding_status:
+          type: string
+          enum: [pending, in_progress, completed, failed, not_required]
+        transcoded_versions:
+          type: array
+          items:
+            type: object
+            properties:
+              quality:
+                type: string
+                example: "1080p"
+              url:
+                type: string
+                format: uri
+              file_size_mb:
+                type: number
+        processing_status:
+          type: string
+          enum: [uploaded, processing, analyzed, failed, ready]
+        privacy_setting:
+          type: string
+          enum: [private, team_only, scouts_allowed, public, college_recruiters]
+        consent_verified:
+          type: boolean
+        title:
+          type: string
+          maxLength: 500
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["Goal", "Assist", "Strong Defense"]
+        coach_notes:
+          type: string
+        student_notes:
+          type: string
+        video_quality_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        view_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    VideoAnalysisResult:
+      type: object
+      required:
+        - analysis_id
+        - video_id
+        - student_id
+        - analysis_type
+        - ai_model_name
+        - analysis_results
+      properties:
+        analysis_id:
+          type: string
+          format: uuid
+        video_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        analysis_type:
+          type: string
+          enum: [player_identification, skill_assessment, tactical_analysis, highlight_detection, performance_metrics, comparison]
+        ai_model_name:
+          type: string
+          example: "PlayerSkillAssessment_v2.1"
+        ai_model_version:
+          type: string
+          example: "2.1.0"
+        confidence_score:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+        processed_at:
+          type: string
+          format: date-time
+        processing_time_seconds:
+          type: integer
+        deployment_location:
+          type: string
+          example: "Cloud"
+        analysis_results:
+          type: object
+          description: Structured analysis output (schema varies by analysis_type)
+          example:
+            overall_rating: 7.5
+            technical_skills:
+              passing_accuracy: 82
+              first_touch: 75
+              dribbling: 88
+              shooting: 70
+            strengths: ["Dribbling", "Decision Making"]
+            weaknesses: ["Heading", "Shooting Accuracy"]
+        detected_events:
+          type: array
+          items:
+            type: object
+            properties:
+              event_type:
+                type: string
+              timestamp:
+                type: string
+              confidence:
+                type: number
+              description:
+                type: string
+        performance_stats:
+          type: object
+          example:
+            touches: 87
+            passes_attempted: 52
+            passes_completed: 45
+            pass_accuracy: 86.5
+        training_recommendations:
+          type: array
+          items:
+            type: string
+        reviewed_by_coach:
+          type: boolean
+        coach_agreement:
+          type: boolean
+          nullable: true
+        coach_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    
+    VideoHighlight:
+      type: object
+      required:
+        - highlight_id
+        - video_id
+        - student_id
+        - highlight_type
+        - start_timestamp
+        - end_timestamp
+      properties:
+        highlight_id:
+          type: string
+          format: uuid
+        video_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        analysis_id:
+          type: string
+          format: uuid
+          nullable: true
+        highlight_type:
+          type: string
+          enum: [goal, assist, save, tackle, pass, dribble, shot, header, free_kick, corner_kick, penalty, defensive_play, skill_move, other]
+        start_timestamp:
+          type: string
+          example: "00:15:23"
+        end_timestamp:
+          type: string
+          example: "00:15:35"
+        start_seconds:
+          type: integer
+        end_seconds:
+          type: integer
+        duration_seconds:
+          type: integer
+          readOnly: true
+        auto_detected:
+          type: boolean
+        detection_confidence:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+        manually_tagged:
+          type: boolean
+        quality_score:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        importance_score:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        recruitability_score:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        title:
+          type: string
+          maxLength: 300
+        description:
+          type: string
+        technical_notes:
+          type: string
+        clip_generated:
+          type: boolean
+        clip_storage_url:
+          type: string
+          format: uri
+        clip_thumbnail_url:
+          type: string
+          format: uri
+        tags:
+          type: array
+          items:
+            type: string
+        showcase_worthy:
+          type: boolean
+        student_favorite:
+          type: boolean
+        coach_featured:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    
+    RecruitmentReel:
+      type: object
+      required:
+        - reel_id
+        - student_id
+        - reel_name
+        - reel_type
+      properties:
+        reel_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        reel_name:
+          type: string
+          maxLength: 300
+          example: "Maria Rodriguez - 2026 Soccer Highlights"
+        reel_type:
+          type: string
+          enum: [general, position_specific, college_specific, pro_trial, scholarship_app]
+        target_audience:
+          type: string
+          example: "D1_Colleges"
+        specific_target:
+          type: string
+          example: "University of Texas"
+        included_highlights:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Array of highlight_ids
+        highlight_count:
+          type: integer
+        total_duration_seconds:
+          type: integer
+        reel_storage_url:
+          type: string
+          format: uri
+        reel_thumbnail_url:
+          type: string
+          format: uri
+        file_size_mb:
+          type: number
+        resolution:
+          type: string
+        format:
+          type: string
+        auto_generated:
+          type: boolean
+        generation_date:
+          type: string
+          format: date-time
+        share_link:
+          type: string
+          format: uri
+        share_link_active:
+          type: boolean
+        share_link_expires_at:
+          type: string
+          format: date-time
+        view_count:
+          type: integer
+        scout_views:
+          type: integer
+        status:
+          type: string
+          enum: [draft, in_review, approved, published, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+paths:
+  # ==================== VIDEO UPLOADS ====================
+  /students/{student_id}/videos:
+    get:
+      tags:
+        - Video Uploads
+      summary: Get student's videos
+      description: Retrieve all videos for a student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_type
+          in: query
+          schema:
+            type: string
+            enum: [full_match, highlight_reel, drill, scrimmage, training, trial, other]
+        - name: processing_status
+          in: query
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of videos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VideoUpload'
+                  summary:
+                    type: object
+                    properties:
+                      total_videos:
+                        type: integer
+                      total_duration_seconds:
+                        type: integer
+                      total_storage_mb:
+                        type: number
+                      analyzed_count:
+                        type: integer
+    
+    post:
+      tags:
+        - Video Uploads
+      summary: Initiate video upload
+      description: Start multipart video upload process
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - video_type
+                - consent_verified
+              properties:
+                file:
+                  type: string
+                  format: binary
+                video_type:
+                  type: string
+                  enum: [full_match, highlight_reel, drill, scrimmage, training, trial, other]
+                event_name:
+                  type: string
+                event_date:
+                  type: string
+                  format: date
+                title:
+                  type: string
+                description:
+                  type: string
+                privacy_setting:
+                  type: string
+                  enum: [private, team_only, scouts_allowed, public, college_recruiters]
+                  default: private
+                consent_verified:
+                  type: boolean
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '202':
+          description: Upload initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  video_id:
+                    type: string
+                    format: uuid
+                  upload_url:
+                    type: string
+                    format: uri
+                    description: Signed URL for completing upload
+                  status:
+                    type: string
+                    example: "uploading"
+        '400':
+          description: Invalid request
+        '413':
+          description: File too large
+  
+  /students/{student_id}/videos/{video_id}:
+    get:
+      tags:
+        - Video Uploads
+      summary: Get video details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Video details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoUpload'
+    
+    patch:
+      tags:
+        - Video Uploads
+      summary: Update video metadata
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                privacy_setting:
+                  type: string
+                coach_notes:
+                  type: string
+      responses:
+        '200':
+          description: Video updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoUpload'
+    
+    delete:
+      tags:
+        - Video Uploads
+      summary: Delete video
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Video deleted
+  
+  # ==================== VIDEO ANALYSIS ====================
+  /students/{student_id}/videos/{video_id}/analyze:
+    post:
+      tags:
+        - Video Analysis
+      summary: Request video analysis
+      description: Submit video for AI/ML analysis
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - analysis_type
+              properties:
+                analysis_type:
+                  type: string
+                  enum: [player_identification, skill_assessment, tactical_analysis, highlight_detection, performance_metrics, comparison]
+                priority:
+                  type: string
+                  enum: [low, medium, high, urgent]
+                  default: medium
+                deployment_preference:
+                  type: string
+                  enum: [cloud, edge, auto]
+                  default: auto
+      responses:
+        '202':
+          description: Analysis job submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: "queued"
+                  estimated_completion:
+                    type: string
+                    format: date-time
+        '400':
+          description: Video not ready for analysis
+  
+  /students/{student_id}/videos/{video_id}/analysis:
+    get:
+      tags:
+        - Video Analysis
+      summary: Get analysis results
+      description: Retrieve all analysis results for a video
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: analysis_type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VideoAnalysisResult'
+  
+  /students/{student_id}/videos/{video_id}/analysis/{analysis_id}:
+    get:
+      tags:
+        - Video Analysis
+      summary: Get specific analysis result
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: analysis_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoAnalysisResult'
+    
+    patch:
+      tags:
+        - Video Analysis
+      summary: Update analysis (coach review)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: video_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: analysis_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                coach_agreement:
+                  type: boolean
+                coach_notes:
+                  type: string
+                reviewed:
+                  type: boolean
+      responses:
+        '200':
+          description: Analysis updated
+  
+  # ==================== HIGHLIGHTS ====================
+  /students/{student_id}/highlights:
+    get:
+      tags:
+        - Highlights
+      summary: Get student's highlights
+      description: Retrieve all video highlights for a student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: highlight_type
+          in: query
+          schema:
+            type: string
+        - name: showcase_worthy
+          in: query
+          schema:
+            type: boolean
+        - name: min_quality_score
+          in: query
+          schema:
+            type: number
+      responses:
+        '200':
+          description: List of highlights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VideoHighlight'
+    
+    post:
+      tags:
+        - Highlights
+      summary: Manually tag highlight
+      description: Create a new highlight by manually tagging timestamp range
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - video_id
+                - highlight_type
+                - start_timestamp
+                - end_timestamp
+              properties:
+                video_id:
+                  type: string
+                  format: uuid
+                highlight_type:
+                  type: string
+                start_timestamp:
+                  type: string
+                end_timestamp:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Highlight created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoHighlight'
+  
+  /students/{student_id}/highlights/{highlight_id}:
+    patch:
+      tags:
+        - Highlights
+      summary: Update highlight
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: highlight_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                showcase_worthy:
+                  type: boolean
+                student_favorite:
+                  type: boolean
+                coach_featured:
+                  type: boolean
+                quality_score:
+                  type: number
+                recruitability_score:
+                  type: number
+      responses:
+        '200':
+          description: Highlight updated
+  
+  # ==================== RECRUITMENT REELS ====================
+  /students/{student_id}/recruitment-reels:
+    get:
+      tags:
+        - Recruitment Reels
+      summary: Get student's recruitment reels
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of reels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RecruitmentReel'
+    
+    post:
+      tags:
+        - Recruitment Reels
+      summary: Create recruitment reel
+      description: Compile highlights into recruitment reel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reel_name
+                - reel_type
+                - included_highlights
+              properties:
+                reel_name:
+                  type: string
+                reel_type:
+                  type: string
+                target_audience:
+                  type: string
+                included_highlights:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                auto_select_best:
+                  type: boolean
+                  description: Use AI to select best highlights
+                max_duration_seconds:
+                  type: integer
+      responses:
+        '202':
+          description: Reel generation started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reel_id:
+                    type: string
+                    format: uuid
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: "generating"
+  
+  /students/{student_id}/recruitment-reels/{reel_id}/share:
+    post:
+      tags:
+        - Recruitment Reels
+      summary: Generate shareable link
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: reel_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expires_in_days:
+                  type: integer
+                  default: 90
+                password_protected:
+                  type: boolean
+      responses:
+        '200':
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  share_link:
+                    type: string
+                    format: uri
+                  expires_at:
+                    type: string
+                    format: date-time
+
+security:
+  - BearerAuth: []
