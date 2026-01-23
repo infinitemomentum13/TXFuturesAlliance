@@ -1,0 +1,1051 @@
+openapi: 3.0.3
+info:
+  title: TX Futures Alliance - Scholarship Service API
+  description: |
+    API for scholarship search, AI-powered matching, application tracking,
+    and outcome measurement.
+    
+    **Key Features**:
+    - AI/ML scholarship matching based on student profiles
+    - Application lifecycle management
+    - Essay template generation (AI-assisted)
+    - Outcome tracking and effectiveness measurement
+  version: 1.0.0
+
+servers:
+  - url: https://api.txfuturesalliance.org/v1
+    description: Production server
+  - url: https://staging-api.txfuturesalliance.org/v1
+    description: Staging server
+
+tags:
+  - name: Scholarships
+    description: Scholarship catalog management
+  - name: Matches
+    description: AI-powered scholarship matching
+  - name: Applications
+    description: Application tracking and management
+  - name: Essays
+    description: Essay templates and AI assistance
+  - name: Outcomes
+    description: Award outcomes and effectiveness
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    Scholarship:
+      type: object
+      required:
+        - scholarship_id
+        - name
+        - organization
+        - award_type
+        - application_deadline
+      properties:
+        scholarship_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 500
+          example: "STEM Excellence Scholarship"
+        organization:
+          type: string
+          maxLength: 300
+          example: "National Science Foundation"
+        organization_type:
+          type: string
+          example: "Foundation"
+        award_type:
+          type: string
+          enum: [One-time, Renewable, Full-ride, Partial]
+        award_amount_min:
+          type: number
+          format: decimal
+          example: 5000.00
+        award_amount_max:
+          type: number
+          format: decimal
+          example: 10000.00
+        typical_award_amount:
+          type: number
+          format: decimal
+          example: 7500.00
+        number_of_awards:
+          type: integer
+          example: 50
+        renewable:
+          type: boolean
+        max_years_renewable:
+          type: integer
+          example: 4
+        application_deadline:
+          type: string
+          format: date
+          example: "2025-03-15"
+        early_deadline:
+          type: string
+          format: date
+          nullable: true
+        rolling_admission:
+          type: boolean
+        eligibility_criteria:
+          type: object
+          properties:
+            gpa_minimum:
+              type: number
+              example: 3.0
+            income_maximum:
+              type: number
+              example: 50000
+            grade_levels:
+              type: array
+              items:
+                type: string
+              example: ["11", "12"]
+            demographic_requirements:
+              type: object
+            geographic_restrictions:
+              type: object
+            athletic_requirements:
+              type: object
+            major_restrictions:
+              type: array
+              items:
+                type: string
+            test_scores:
+              type: object
+        essay_required:
+          type: boolean
+        essay_prompts:
+          type: array
+          items:
+            type: string
+        recommendations_required:
+          type: integer
+          example: 2
+        transcript_required:
+          type: boolean
+        fafsa_required:
+          type: boolean
+        application_url:
+          type: string
+          format: uri
+        success_rate:
+          type: number
+          format: decimal
+          description: Historical percentage of applicants who win
+          example: 12.5
+        categories:
+          type: array
+          items:
+            type: string
+          example: ["Academic", "STEM", "Need-Based"]
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["Women in STEM", "First Generation", "Rural Students"]
+        active_status:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    ScholarshipMatch:
+      type: object
+      required:
+        - match_id
+        - student_id
+        - scholarship_id
+        - match_score
+      properties:
+        match_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        scholarship_id:
+          type: string
+          format: uuid
+        scholarship:
+          $ref: '#/components/schemas/Scholarship'
+        match_score:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: How good is this match (0-100)
+          example: 87.5
+        probability_of_award:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          description: Estimated chance of winning (0-100)
+          example: 35.2
+        match_rationale:
+          type: object
+          properties:
+            strengths:
+              type: array
+              items:
+                type: string
+              example:
+                - "GPA exceeds minimum by 0.5"
+                - "Strong athletic profile matches requirement"
+            weaknesses:
+              type: array
+              items:
+                type: string
+            requirements_met:
+              type: integer
+            requirements_total:
+              type: integer
+            competitive_advantages:
+              type: array
+              items:
+                type: string
+        application_deadline:
+          type: string
+          format: date
+        days_until_deadline:
+          type: integer
+          readOnly: true
+        priority_level:
+          type: string
+          enum: [Critical, High, Medium, Low]
+        application_status:
+          type: string
+          enum: [not_started, in_progress, submitted, under_review, finalist, awarded, denied, withdrawn]
+        viewed_by_student:
+          type: boolean
+        bookmarked:
+          type: boolean
+        dismissed:
+          type: boolean
+        counselor_recommendation:
+          type: string
+          enum: [Highly Recommended, Recommended, Consider, Not Recommended]
+          nullable: true
+        calculated_at:
+          type: string
+          format: date-time
+    
+    ScholarshipApplication:
+      type: object
+      required:
+        - application_id
+        - student_id
+        - scholarship_id
+        - status
+      properties:
+        application_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        scholarship_id:
+          type: string
+          format: uuid
+        scholarship:
+          $ref: '#/components/schemas/Scholarship'
+        match_id:
+          type: string
+          format: uuid
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        decision_date:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [in_progress, submitted, under_review, finalist, interview_scheduled, awarded, denied, waitlisted, withdrawn]
+        outcome:
+          type: string
+          enum: [awarded, denied, waitlisted, withdrawn, pending]
+          nullable: true
+        award_amount:
+          type: number
+          format: decimal
+          nullable: true
+        award_years:
+          type: integer
+          nullable: true
+        materials_checklist:
+          type: object
+          description: Status of required application materials
+          example:
+            essay:
+              required: true
+              completed: true
+              submitted_at: "2024-01-15"
+            transcript:
+              required: true
+              completed: false
+            recommendations:
+              required: 2
+              completed: 1
+        completion_percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+          readOnly: true
+        essay_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        transcript_url:
+          type: string
+          format: uri
+          nullable: true
+        recommendation_letter_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        interview_scheduled:
+          type: boolean
+        interview_date:
+          type: string
+          format: date-time
+          nullable: true
+        interview_format:
+          type: string
+          enum: [In-person, Video, Phone, Written]
+          nullable: true
+        communication_log:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date-time
+              type:
+                type: string
+                example: "email"
+              subject:
+                type: string
+              content:
+                type: string
+        assistance_provided:
+          type: boolean
+        assistance_type:
+          type: array
+          items:
+            type: string
+          example: ["Essay Review", "Interview Prep"]
+        student_notes:
+          type: string
+        counselor_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    EssayTemplate:
+      type: object
+      required:
+        - template_id
+        - student_id
+        - scholarship_id
+        - prompt_text
+      properties:
+        template_id:
+          type: string
+          format: uuid
+        application_id:
+          type: string
+          format: uuid
+          nullable: true
+        student_id:
+          type: string
+          format: uuid
+        scholarship_id:
+          type: string
+          format: uuid
+        prompt_text:
+          type: string
+          description: The essay question/prompt
+        word_limit:
+          type: integer
+          example: 500
+        ai_generated_draft:
+          type: string
+          description: AI-generated initial draft
+          nullable: true
+        student_draft:
+          type: string
+          description: Student's edited version
+          nullable: true
+        final_version:
+          type: string
+          nullable: true
+        finalized_at:
+          type: string
+          format: date-time
+          nullable: true
+        word_count:
+          type: integer
+        edit_count:
+          type: integer
+          readOnly: true
+        reviewed_by_counselor:
+          type: boolean
+        counselor_feedback:
+          type: string
+          nullable: true
+        counselor_approved:
+          type: boolean
+        submitted:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+paths:
+  # ==================== SCHOLARSHIPS ====================
+  /scholarships:
+    get:
+      tags:
+        - Scholarships
+      summary: Search scholarships
+      description: Search and filter scholarship catalog
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          description: Text search across name, organization, description
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: min_amount
+          in: query
+          description: Minimum award amount
+          schema:
+            type: number
+        - name: max_amount
+          in: query
+          description: Maximum award amount
+          schema:
+            type: number
+        - name: deadline_before
+          in: query
+          description: Application deadline before this date
+          schema:
+            type: string
+            format: date
+        - name: deadline_after
+          in: query
+          description: Application deadline after this date
+          schema:
+            type: string
+            format: date
+        - name: gpa_min
+          in: query
+          description: Filter by minimum GPA requirement
+          schema:
+            type: number
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of scholarships
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Scholarship'
+                  meta:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      page_size:
+                        type: integer
+                      total_items:
+                        type: integer
+                      total_pages:
+                        type: integer
+  
+  /scholarships/{scholarship_id}:
+    get:
+      tags:
+        - Scholarships
+      summary: Get scholarship details
+      description: Retrieve detailed information about a specific scholarship
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: scholarship_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Scholarship details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Scholarship'
+        '404':
+          description: Scholarship not found
+  
+  # ==================== MATCHES ====================
+  /students/{student_id}/scholarship-matches:
+    get:
+      tags:
+        - Matches
+      summary: Get scholarship matches for student
+      description: Retrieve AI-generated scholarship matches ranked by fit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: min_score
+          in: query
+          description: Minimum match score (0-100)
+          schema:
+            type: number
+            default: 60
+        - name: status
+          in: query
+          description: Filter by application status
+          schema:
+            type: string
+            enum: [not_started, in_progress, submitted, under_review, finalist, awarded, denied, withdrawn]
+        - name: priority
+          in: query
+          description: Filter by priority level
+          schema:
+            type: string
+            enum: [Critical, High, Medium, Low]
+        - name: dismissed
+          in: query
+          description: Include dismissed matches
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of scholarship matches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScholarshipMatch'
+                  summary:
+                    type: object
+                    properties:
+                      total_matches:
+                        type: integer
+                      high_quality_matches:
+                        type: integer
+                        description: Matches with score >= 80
+                      not_started:
+                        type: integer
+                      in_progress:
+                        type: integer
+                      submitted:
+                        type: integer
+                      total_potential_value:
+                        type: number
+                        description: Sum of all typical award amounts
+    
+    post:
+      tags:
+        - Matches
+      summary: Generate new matches
+      description: Trigger AI matching algorithm to find new scholarships
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                force_refresh:
+                  type: boolean
+                  description: Re-calculate existing matches
+                  default: false
+      responses:
+        '202':
+          description: Match generation job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: "processing"
+                  estimated_completion:
+                    type: string
+                    format: date-time
+  
+  /students/{student_id}/scholarship-matches/{match_id}:
+    get:
+      tags:
+        - Matches
+      summary: Get match details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: match_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Match details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScholarshipMatch'
+    
+    patch:
+      tags:
+        - Matches
+      summary: Update match status
+      description: Bookmark, dismiss, or update match
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: match_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookmarked:
+                  type: boolean
+                dismissed:
+                  type: boolean
+                dismissed_reason:
+                  type: string
+                viewed:
+                  type: boolean
+      responses:
+        '200':
+          description: Match updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScholarshipMatch'
+  
+  # ==================== APPLICATIONS ====================
+  /students/{student_id}/scholarship-applications:
+    get:
+      tags:
+        - Applications
+      summary: Get student's applications
+      description: Retrieve all scholarship applications for a student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScholarshipApplication'
+                  summary:
+                    type: object
+                    properties:
+                      total_applications:
+                        type: integer
+                      in_progress:
+                        type: integer
+                      submitted:
+                        type: integer
+                      awarded:
+                        type: integer
+                      total_awarded_amount:
+                        type: number
+    
+    post:
+      tags:
+        - Applications
+      summary: Start new application
+      description: Begin scholarship application process
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - scholarship_id
+              properties:
+                scholarship_id:
+                  type: string
+                  format: uuid
+                match_id:
+                  type: string
+                  format: uuid
+                  description: If starting from a match
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScholarshipApplication'
+        '409':
+          description: Application already exists
+  
+  /students/{student_id}/scholarship-applications/{application_id}:
+    get:
+      tags:
+        - Applications
+      summary: Get application details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Application details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScholarshipApplication'
+    
+    patch:
+      tags:
+        - Applications
+      summary: Update application
+      description: Update application status, materials, or notes
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                materials_checklist:
+                  type: object
+                student_notes:
+                  type: string
+                essay_urls:
+                  type: array
+                  items:
+                    type: string
+                transcript_url:
+                  type: string
+      responses:
+        '200':
+          description: Application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScholarshipApplication'
+  
+  /students/{student_id}/scholarship-applications/{application_id}/submit:
+    post:
+      tags:
+        - Applications
+      summary: Submit application
+      description: Mark application as submitted (final step)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                submission_confirmation:
+                  type: string
+                  description: Confirmation number from scholarship organization
+      responses:
+        '200':
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScholarshipApplication'
+        '400':
+          description: Application incomplete
+  
+  # ==================== ESSAYS ====================
+  /students/{student_id}/scholarship-applications/{application_id}/essays:
+    post:
+      tags:
+        - Essays
+      summary: Generate essay template
+      description: Use AI to generate initial essay draft based on prompt
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt_text
+              properties:
+                prompt_text:
+                  type: string
+                  description: The essay question/prompt
+                word_limit:
+                  type: integer
+                student_context:
+                  type: object
+                  description: Additional context for AI generation
+      responses:
+        '201':
+          description: Essay template generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EssayTemplate'
+  
+  /students/{student_id}/scholarship-applications/{application_id}/essays/{template_id}:
+    get:
+      tags:
+        - Essays
+      summary: Get essay template
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Essay template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EssayTemplate'
+    
+    patch:
+      tags:
+        - Essays
+      summary: Update essay
+      description: Save student edits to essay
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: application_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                student_draft:
+                  type: string
+                finalized:
+                  type: boolean
+      responses:
+        '200':
+          description: Essay updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EssayTemplate'
+
+security:
+  - BearerAuth: []
