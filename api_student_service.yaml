@@ -1,0 +1,917 @@
+openapi: 3.0.3
+info:
+  title: TX Futures Alliance - Student Service API
+  description: |
+    API for managing student profiles, academic records, athletic profiles, 
+    financial information, and career interests.
+    
+    **Authentication**: All endpoints require JWT Bearer token authentication.
+    
+    **Rate Limiting**: 1000 requests per hour per API key.
+    
+    **FERPA Compliance**: All student data access is logged and requires proper authorization.
+  version: 1.0.0
+  contact:
+    name: TX Futures Alliance API Support
+    email: api@txfuturesalliance.org
+  license:
+    name: Proprietary
+    
+servers:
+  - url: https://api.txfuturesalliance.org/v1
+    description: Production server
+  - url: https://staging-api.txfuturesalliance.org/v1
+    description: Staging server
+  - url: http://localhost:8000/v1
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Students
+    description: Student profile management
+  - name: Academic Records
+    description: Academic performance tracking
+  - name: Athletic Profiles
+    description: Athletic participation and performance
+  - name: Financial Profiles
+    description: Financial need and FAFSA data
+  - name: Career Interests
+    description: Career goals and pathway preferences
+  - name: Test Scores
+    description: Standardized test score management
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/login endpoint
+  
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: STUDENT_NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: Student with ID abc123 not found
+        details:
+          type: object
+          description: Additional error context
+    
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        total_items:
+          type: integer
+          example: 150
+        total_pages:
+          type: integer
+          example: 8
+    
+    Student:
+      type: object
+      required:
+        - student_id
+        - first_name
+        - last_name
+        - date_of_birth
+        - enrollment_status
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          description: Unique student identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        first_name:
+          type: string
+          maxLength: 100
+          example: "Maria"
+        last_name:
+          type: string
+          maxLength: 100
+          example: "Rodriguez"
+        middle_name:
+          type: string
+          maxLength: 100
+          example: "Elena"
+        preferred_name:
+          type: string
+          maxLength: 100
+          example: "Mari"
+        date_of_birth:
+          type: string
+          format: date
+          example: "2008-03-15"
+        gender:
+          type: string
+          maxLength: 50
+          example: "Female"
+        ethnicity:
+          type: string
+          maxLength: 100
+          example: "Hispanic/Latino"
+        primary_language:
+          type: string
+          maxLength: 50
+          example: "Spanish"
+        email:
+          type: string
+          format: email
+          example: "maria.rodriguez@example.com"
+        phone:
+          type: string
+          example: "+1-956-555-0123"
+        address:
+          type: object
+          properties:
+            line1:
+              type: string
+            line2:
+              type: string
+            city:
+              type: string
+              example: "Brownsville"
+            state:
+              type: string
+              example: "TX"
+            zip_code:
+              type: string
+              example: "78520"
+            country:
+              type: string
+              default: "US"
+        guardians:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              relationship:
+                type: string
+                example: "Mother"
+              email:
+                type: string
+                format: email
+              phone:
+                type: string
+        enrollment_status:
+          type: string
+          enum: [active, inactive, graduated, withdrawn, transferred]
+          example: "active"
+        enrollment_date:
+          type: string
+          format: date
+          example: "2023-08-15"
+        graduation_date:
+          type: string
+          format: date
+          nullable: true
+        current_grade_level:
+          type: integer
+          minimum: 6
+          maximum: 12
+          example: 11
+        expected_graduation_year:
+          type: integer
+          example: 2026
+        school_district_id:
+          type: string
+          format: uuid
+        current_school_id:
+          type: string
+          format: uuid
+        profile_photo_url:
+          type: string
+          format: uri
+        bio:
+          type: string
+        data_consent:
+          type: object
+          properties:
+            ferpa_consent:
+              type: boolean
+            ferpa_consent_date:
+              type: string
+              format: date-time
+            gdpr_consent:
+              type: boolean
+            data_sharing:
+              type: object
+              properties:
+                scouts:
+                  type: boolean
+                colleges:
+                  type: boolean
+                corporate:
+                  type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    
+    CreateStudentRequest:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - date_of_birth
+        - guardian_email
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        middle_name:
+          type: string
+          maxLength: 100
+        preferred_name:
+          type: string
+          maxLength: 100
+        date_of_birth:
+          type: string
+          format: date
+        gender:
+          type: string
+          maxLength: 50
+        ethnicity:
+          type: string
+          maxLength: 100
+        primary_language:
+          type: string
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        guardian_email:
+          type: string
+          format: email
+          description: Required for COPPA compliance if student is under 13
+        enrollment_date:
+          type: string
+          format: date
+        current_grade_level:
+          type: integer
+          minimum: 6
+          maximum: 12
+        school_district_id:
+          type: string
+          format: uuid
+    
+    AcademicRecord:
+      type: object
+      required:
+        - record_id
+        - student_id
+        - school_year
+        - semester
+        - course_name
+      properties:
+        record_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        school_year:
+          type: string
+          pattern: '^\d{4}-\d{4}$'
+          example: "2024-2025"
+        semester:
+          type: string
+          example: "Fall"
+        course_id:
+          type: string
+        course_name:
+          type: string
+          example: "Algebra II"
+        course_code:
+          type: string
+          example: "MATH301"
+        course_type:
+          type: string
+          enum: [Regular, Honors, AP, IB, "Dual Credit", Remedial]
+        department:
+          type: string
+          example: "Mathematics"
+        credit_hours:
+          type: number
+          format: decimal
+          example: 1.0
+        letter_grade:
+          type: string
+          enum: ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F", "P", "I", "W"]
+        numeric_grade:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          example: 87.5
+        grade_points:
+          type: number
+          format: decimal
+          example: 3.0
+        passing:
+          type: boolean
+        gpa_semester:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 4.5
+          example: 3.45
+        gpa_cumulative:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 4.5
+          example: 3.62
+        attendance_rate:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 100
+          example: 95.5
+        teacher_name:
+          type: string
+        source_system:
+          type: string
+          example: "Skyward"
+        sync_timestamp:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    
+    AthleticProfile:
+      type: object
+      required:
+        - profile_id
+        - student_id
+        - sport
+        - start_date
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        student_id:
+          type: string
+          format: uuid
+        sport:
+          type: string
+          example: "Soccer"
+        position:
+          type: string
+          example: "Forward"
+        secondary_positions:
+          type: string
+          example: "Midfielder, Winger"
+        team_name:
+          type: string
+          example: "FC Brownsville U17"
+        jersey_number:
+          type: string
+          example: "10"
+        years_experience:
+          type: integer
+          example: 5
+        skill_level:
+          type: string
+          enum: [Beginner, Intermediate, Advanced, Elite]
+        competitive_level:
+          type: string
+          enum: [Recreational, Select, Premier, Academy, Professional]
+        height_inches:
+          type: integer
+        weight_pounds:
+          type: integer
+        dominant_foot:
+          type: string
+          enum: [Left, Right, Both]
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        active_status:
+          type: boolean
+          default: true
+        overall_rating:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+          example: 7.5
+        technical_skills_rating:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        tactical_awareness_rating:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        physical_fitness_rating:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        mental_toughness_rating:
+          type: number
+          format: decimal
+          minimum: 1
+          maximum: 10
+        strengths:
+          type: string
+        areas_for_improvement:
+          type: string
+        coach_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+paths:
+  # ==================== AUTHENTICATION ====================
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token
+                  token_type:
+                    type: string
+                    example: "Bearer"
+                  expires_in:
+                    type: integer
+                    description: Token expiration time in seconds
+                    example: 3600
+                  user:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                      role:
+                        type: string
+                        example: "student"
+                      student_id:
+                        type: string
+                        format: uuid
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  # ==================== STUDENTS ====================
+  /students:
+    get:
+      tags:
+        - Students
+      summary: List students
+      description: Get paginated list of students (filtered by permission)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: enrollment_status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, graduated, withdrawn, transferred]
+        - name: grade_level
+          in: query
+          schema:
+            type: integer
+            minimum: 6
+            maximum: 12
+        - name: school_district_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Search by name or email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of students
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Student'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      tags:
+        - Students
+      summary: Create new student
+      description: Register a new student in the system
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStudentRequest'
+      responses:
+        '201':
+          description: Student created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Student already exists
+  
+  /students/{student_id}:
+    get:
+      tags:
+        - Students
+      summary: Get student by ID
+      description: Retrieve detailed student information
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Student details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - insufficient permissions
+        '404':
+          description: Student not found
+    
+    put:
+      tags:
+        - Students
+      summary: Update student
+      description: Update student profile information
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Student'
+      responses:
+        '200':
+          description: Student updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Student not found
+    
+    delete:
+      tags:
+        - Students
+      summary: Delete student (soft delete)
+      description: Soft delete student record (sets deleted_at timestamp)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Student deleted successfully
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Student not found
+  
+  # ==================== ACADEMIC RECORDS ====================
+  /students/{student_id}/academic-records:
+    get:
+      tags:
+        - Academic Records
+      summary: Get student's academic records
+      description: Retrieve all academic records for a student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: school_year
+          in: query
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{4}$'
+        - name: semester
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Academic records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AcademicRecord'
+                  summary:
+                    type: object
+                    properties:
+                      current_gpa:
+                        type: number
+                      total_credits:
+                        type: number
+                      attendance_rate:
+                        type: number
+        '401':
+          description: Unauthorized
+        '404':
+          description: Student not found
+    
+    post:
+      tags:
+        - Academic Records
+      summary: Create academic record
+      description: Add new academic record (typically synced from Skyward)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcademicRecord'
+      responses:
+        '201':
+          description: Academic record created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicRecord'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+  
+  # ==================== ATHLETIC PROFILES ====================
+  /students/{student_id}/athletic-profiles:
+    get:
+      tags:
+        - Athletic Profiles
+      summary: Get student's athletic profiles
+      description: Retrieve all athletic profiles for a student (can have multiple sports)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: active_only
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Athletic profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleticProfile'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Student not found
+    
+    post:
+      tags:
+        - Athletic Profiles
+      summary: Create athletic profile
+      description: Add new sport participation for student
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AthleticProfile'
+      responses:
+        '201':
+          description: Athletic profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AthleticProfile'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+  
+  /students/{student_id}/athletic-profiles/{profile_id}:
+    put:
+      tags:
+        - Athletic Profiles
+      summary: Update athletic profile
+      description: Update athletic profile information (typically by coaches)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: student_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: profile_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AthleticProfile'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AthleticProfile'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '404':
+          description: Profile not found
+
+security:
+  - BearerAuth: []
