@@ -5,7 +5,23 @@ This repository contains the complete database schemas and API specifications fo
 
 **Created:** January 23, 2026  
 **Version:** 1.0.0  
-**Status:** Foundation - Ready for Development
+**Status:** Pathways demo is live at https://www.fcbrownsville.com/pathways/
+
+---
+
+## Pathways app
+
+The screen source is in `app/`. It is the bilingual demo running on the FC Brownsville site. Sign-in accepts any email and password. The Demo menu in the header switches roles.
+
+```bash
+cd app
+npm install
+npm run dev
+```
+
+Open http://localhost:3000/pathways/
+
+`npm run build` writes `app/dist/`. Upload that folder’s contents into `public_html/pathways/` on Hostinger. Do not upload anything into the `pathways` folder that sits next to `public_html`; that folder is outside the website.
 
 ---
 

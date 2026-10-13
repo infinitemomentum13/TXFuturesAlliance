@@ -1,0 +1,1539 @@
+# =============================================================================
+# TX Futures Alliance — OpenAPI ADDITIONS (front end)
+# =============================================================================
+# New endpoints the three attached specs do NOT cover, written in the same
+# REST style under /api/v1. These must be reviewed and absorbed into the real
+# back end's OpenAPI specs before implementation. Same conventions:
+# Bearer auth, { data, meta } pagination, Error schema from
+# api_student_service.yaml.
+#
+# Status legend per path: [mock implemented] = the stand-in server answers
+# today; [planned] = defined here, implemented in a later build step.
+# =============================================================================
+openapi: 3.0.3
+info:
+  title: TX Futures Alliance - API Additions (front end)
+  version: 0.1.0
+  description: >
+    Endpoints added by the front end for certificate careers, consent
+    records, Racing 360 reports, contact requests, colleges, and
+    opportunities. Not part of the original blueprint — review before
+    building the real back end.
+servers:
+  - url: /api/v1
+
+paths:
+  # ------------------------- CONSENT CENTER ------------------------------
+  # Suggested table: consent_records(consent_id, student_id, consent_key,
+  # granted, granted_at, granted_by_role, revoked_at)
+  /students/{student_id}/consents:                       # [mock implemented]
+    get:
+      summary: Get per-purpose consent switches and access log
+      responses:
+        '200':
+          description: Consent record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentRecord'
+        '403': { description: Forbidden }
+        '404': { description: Student not found }
+    put:
+      summary: Set consent switches (all start OFF)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                consents:
+                  type: object
+                  properties:
+                    grades_for_matching: { type: boolean }
+                    sports_to_colleges: { type: boolean }
+                    sports_to_pro_clubs: { type: boolean }
+                    videos: { type: boolean }
+                    partner_contact: { type: boolean }
+      responses:
+        '200':
+          description: Updated consent record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentRecord'
+
+  # ------------------------- RACING 360 REPORTS --------------------------
+  # Field names to confirm with the Racing 360 vendor.
+  # Suggested table: racing360_reports(report_id, student_id, report_date,
+  # metrics JSONB, source, file_url, coach_notes)
+  /students/{student_id}/racing360-reports:              # [mock implemented]
+    get:
+      summary: List imported Racing 360 performance reports
+      responses:
+        '200':
+          description: Reports, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Racing360Report'
+    post:
+      summary: Add a report (file import metadata or manual metric entry)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [report_date]
+              properties:
+                report_date: { type: string, format: date }
+                metrics: { type: object }
+                coach_notes: { type: string }
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Racing360Report'
+
+  # ------------------------- CERTIFICATE CAREERS -------------------------
+  # Suggested table: careers(career_id, title_en, title_es, credential,
+  # credential_issuer, training_length_weeks, training_cost_usd,
+  # funded_options TEXT[], min_age_train, min_age_work,
+  # weeks_to_first_paycheck, starting_pay_rgv_hourly, starting_pay_tx_hourly,
+  # career_ladder TEXT[], sector, training_providers JSONB, is_sample)
+  /careers:                                              # [mock implemented]
+    get:
+      summary: List certificate/license careers with filters
+      parameters:
+        - { name: interest, in: query, schema: { type: string }, description: Compass interest key }
+        - { name: funded, in: query, schema: { type: boolean } }
+        - { name: max_weeks, in: query, schema: { type: integer } }
+        - { name: start_under_18, in: query, schema: { type: boolean } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: page_size, in: query, schema: { type: integer, default: 20 } }
+      responses:
+        '200':
+          description: Paginated careers
+  /careers/{career_id}:                                  # [mock implemented]
+    get:
+      summary: Career detail (training, pay, ladder, providers)
+      responses:
+        '200': { description: Career }
+        '404': { description: Not found }
+  /students/{student_id}/saved-careers:                  # [mock implemented]
+    get: { summary: List saved careers, responses: { '200': { description: OK }, '403': { description: Forbidden } } }
+    post:
+      summary: Save a career
+      responses:
+        '201': { description: Created }
+        '400': { description: career_id invalid }
+        '409': { description: Already saved }
+  /students/{student_id}/saved-careers/{saved_id}:       # [mock implemented]
+    delete: { summary: Unsave a career, responses: { '204': { description: Removed }, '404': { description: Not found } } }
+
+  # ------------------------- COLLEGES (global) ---------------------------
+  # Suggested table: colleges(college_id, name, type, city, state_or_region,
+  # country, in_rgv, spanish_support, soccer_program, is_sample)
+  /colleges:                                             # [mock implemented]
+    get:
+      summary: Search US + international colleges/universities
+      parameters:
+        - { name: country, in: query, schema: { type: string, enum: [US, MX, ES, OTHER] } }
+        - { name: in_rgv, in: query, schema: { type: boolean } }
+        - { name: type, in: query, schema: { type: string, enum: [community_college, university, technical_college] } }
+        - { name: soccer, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Paginated colleges }
+  /colleges/{college_id}:                                # [mock implemented]
+    get: { summary: College detail, responses: { '200': { description: College }, '404': { description: Not found } } }
+  /students/{student_id}/saved-colleges:                 # [mock implemented]
+    get: { summary: List saved colleges, responses: { '200': { description: OK } } }
+    post:
+      summary: Save a college
+      responses:
+        '201': { description: Created }
+        '400': { description: college_id invalid }
+        '409': { description: Already saved }
+  /students/{student_id}/saved-colleges/{saved_id}:      # [mock implemented]
+    delete: { summary: Unsave a college, responses: { '204': { description: Removed } } }
+
+  # ------------------------- PATHWAY COMPASS -----------------------------
+  # Suggested column on students: pathway_compass JSONB (already carried by
+  # the sample data; the intake adds interests/sport/grades keys).
+  /students/{student_id}/compass:                        # [mock implemented]
+    get: { summary: Get Compass answers, responses: { '200': { description: PathwayCompass } } }
+    put:
+      summary: Save Compass answers (partial; sets completed_at)
+      responses:
+        '200': { description: Updated PathwayCompass }
+
+  # ------------------------- MY PLAN / DASHBOARD -------------------------
+  # Suggested tables: plan_actions(action_id, student_id, pathway, title_en,
+  # title_es, due_date, status, origin, created_at, completed_at);
+  # messages(message_id, student_id, from_name, from_role, body_en, body_es,
+  # sent_at, read_at); deadlines as a view unioning scholarship deadlines,
+  # partner events and career class starts.
+  /students/{student_id}/plan-actions:                   # [mock implemented]
+    get: { summary: List plan actions (starter set generated from Compass), responses: { '200': { description: OK } } }
+    post: { summary: Add a plan action, responses: { '201': { description: Created }, '400': { description: Invalid input } } }
+  /students/{student_id}/plan-actions/{action_id}:       # [mock implemented]
+    patch: { summary: Update status/due date, responses: { '200': { description: Updated }, '404': { description: Not found } } }
+  /students/{student_id}/deadlines:                      # [mock implemented]
+    get: { summary: Upcoming deadlines (scholarships, tryouts, class starts), responses: { '200': { description: OK } } }
+  /students/{student_id}/messages:                       # [mock implemented]
+    get: { summary: Coach/counselor messages, newest first, responses: { '200': { description: OK } } }
+  /students/{student_id}/messages/{message_id}:          # [mock implemented]
+    patch: { summary: Mark read, responses: { '200': { description: Updated } } }
+  /students/{student_id}/my-story:                       # [mock implemented]
+    get: { summary: Get the student's "My Story" text, responses: { '200': { description: OK } } }
+    put: { summary: Save "My Story" (max 1000 chars), responses: { '200': { description: Updated } } }
+
+  # ------------------------- PROFILE EXTRAS ------------------------------
+  # documents: suggested table student_documents(document_id, student_id,
+  # kind, file_name, note, uploaded_at) — file bytes come with real storage.
+  # test-scores: mirrors standardized_test_scores SQL table (no spec yet).
+  # interests: mirrors career_interests SQL table (no spec yet).
+  /students/{student_id}/documents:                      # [mock implemented]
+    get: { summary: List documents, responses: { '200': { description: OK } } }
+    post: { summary: Register a document (metadata only), responses: { '201': { description: Created }, '400': { description: Invalid input } } }
+  /students/{student_id}/documents/{document_id}:        # [mock implemented]
+    delete: { summary: Remove a document, responses: { '204': { description: Removed } } }
+  /students/{student_id}/test-scores:                    # [mock implemented]
+    get: { summary: List standardized test scores, responses: { '200': { description: OK } } }
+    post: { summary: Add a test score, responses: { '201': { description: Created }, '400': { description: Invalid input } } }
+  /students/{student_id}/interests:                      # [mock implemented]
+    get: { summary: List career interests (SQL career_interests shape), responses: { '200': { description: OK } } }
+    put: { summary: Replace career interests, responses: { '200': { description: Updated } } }
+
+  # ------------------------- SCHOOLS -------------------------------------
+  # Distinct sample school names, for the Compass picker. Real list comes
+  # from district agreements.
+  /schools:                                              # [mock implemented]
+    get: { summary: List sample schools, responses: { '200': { description: OK } } }
+
+  # ------------------------- MODE PROMOTION ------------------------------
+  /students/{student_id}/promote-to-pathways:            # [mock implemented]
+    post:
+      summary: Move an explorer (under 13) to pathways mode — parent or admin only; in production triggered on the 13th birthday
+      responses:
+        '200': { description: Student updated (app_mode = pathways) }
+        '403': { description: Parent of this child or admin only }
+        '409': { description: Already in pathways mode }
+
+  # ------------------------- OPPORTUNITIES (sports) ----------------------
+  # Suggested table: opportunities(opportunity_id, lane, title, org, level,
+  # age_range, location, dates, cost, requirements)
+  /opportunities:                                        # [planned]
+    get:
+      summary: Sports opportunities (college / national / international lanes)
+      parameters:
+        - { name: lane, in: query, schema: { type: string, enum: [college, national, international] } }
+      responses:
+        '200': { description: Paginated opportunities }
+
+  # ------------------------- CONTACT REQUESTS ----------------------------
+  # Suggested table: contact_requests(request_id, student_id, requester_org,
+  # requester_role, message, status, created_at, decided_at, decided_by)
+  /contact-requests:                                     # [planned]
+    post:
+      summary: Partner/scout requests contact (parent approves if under 18)
+      responses:
+        '201': { description: Request created }
+        '403': { description: Student has not consented }
+  /students/{student_id}/contact-requests:               # [planned]
+    get: { summary: List requests for a student (student/parent/staff), responses: { '200': { description: OK } } }
+  /contact-requests/{request_id}/decision:               # [planned]
+    post:
+      summary: Approve or decline a contact request
+      responses:
+        '200': { description: Updated request }
+
+  # ------------------------- INTERNSHIPS (schema exists, spec missing) ---
+  # corporate_internships_schema.sql exists but had no OpenAPI spec; these
+  # mirror those tables. Fill in fully when building the Career pathway.
+  /partners:                                             # [planned]
+    get: { summary: List corporate partners, responses: { '200': { description: OK } } }
+  /internship-postings:                                  # [planned]
+    get: { summary: List postings, responses: { '200': { description: OK } } }
+    post: { summary: Create posting (partner role), responses: { '201': { description: Created } } }
+  /students/{student_id}/internship-applications:        # [planned]
+    get: { summary: List applications, responses: { '200': { description: OK } } }
+    post: { summary: Apply to a posting, responses: { '201': { description: Created } } }
+
+  # ------------------------- ADMIN ---------------------------------------
+  /admin/reset-demo-data:                                # [mock implemented]
+    post:
+      summary: Reset the mock database to the sample seed (demo only)
+      responses:
+        '200': { description: Reset done }
+        '403': { description: Admin only }
+
+  # ------------------------- INTERNSHIPS & JOBS (Prompt 3) ---------------
+  # Mirrors corporate_internships_schema.sql: internship_postings +
+  # internship_applications. Responses are the STUDENT-FACING SUBSET —
+  # partner contacts, financials, screening internals and statistics stay
+  # server-side.
+  /internships:                                         # [mock implemented]
+    get:
+      summary: List published, visible internship postings (joins company name)
+      parameters:
+        - { name: career_id, in: query, schema: { type: string } }
+        - { name: paid, in: query, schema: { type: boolean } }
+        - { name: sport_friendly, in: query, schema: { type: boolean } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: page_size, in: query, schema: { type: integer } }
+      responses:
+        '200': { description: Paginated list of InternshipPosting }
+  /internships/{posting_id}:                            # [mock implemented]
+    get:
+      summary: Get one posting
+      responses:
+        '200': { description: InternshipPosting }
+        '404': { description: Posting not found }
+  /students/{student_id}/internship-applications:       # [mock implemented]
+    get:
+      summary: Student's applications with posting embedded, newest first
+      responses:
+        '200': { description: '{ data: InternshipApplication[] }' }
+        '403': { description: Forbidden }
+    post:
+      summary: Apply to a posting (student role only; explorer mode blocked)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [posting_id]
+              properties:
+                posting_id: { type: string }
+                application_responses:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        '201': { description: Created InternshipApplication (status submitted) }
+        '403': { description: 'Forbidden / EXPLORER_MODE' }
+        '404': { description: Posting not found }
+        '409': { description: ALREADY_APPLIED | POSTING_FILLED | DEADLINE_PASSED }
+  /students/{student_id}/internship-applications/{application_id}:  # [mock implemented]
+    patch:
+      summary: Withdraw an application
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action: { type: string, enum: [withdraw] }
+      responses:
+        '200': { description: Updated InternshipApplication (status withdrawn) }
+        '409': { description: ALREADY_CLOSED }
+
+  # ------------------------- CAREER PLANS (Prompt 3) ---------------------
+  # Suggested table: career_plans(plan_id, student_id, career_id, created_at)
+  # + career_plan_steps(plan_id, step_key, target_date, est_cost_usd,
+  # documents JSONB). Creating a plan also appends its 5 steps to
+  # plan_actions so they appear on the dashboard timeline.
+  /careers/{career_id}/employers:                       # [mock implemented]
+    get:
+      summary: Partner companies hiring for this career
+      responses:
+        '200': { description: '{ data: CorporatePartner[] }' }
+  /careers/{career_id}/plan:                            # [mock implemented]
+    get:
+      summary: Preview the 5-step plan (enroll→train→test→certified→apply), dated from today
+      responses:
+        '200': { description: '{ career_id, steps: CareerPlanStep[] }' }
+  /students/{student_id}/career-plans:                  # [mock implemented]
+    get:
+      summary: Student's saved career plans (career embedded)
+      responses:
+        '200': { description: '{ data: CareerPlan[] }' }
+    post:
+      summary: Save a career plan and add its steps to the dashboard timeline
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [career_id]
+              properties:
+                career_id: { type: string }
+      responses:
+        '201': { description: Created CareerPlan }
+        '403': { description: 'Forbidden / EXPLORER_MODE' }
+        '409': { description: ALREADY_PLANNED }
+
+  # ------------------------- COUNSELOR REQUESTS (Prompt 3) ---------------
+  # Suggested table: counselor_requests(request_id, student_id, topic,
+  # career_id NULL, posting_id NULL, body, status, created_at)
+  /students/{student_id}/counselor-requests:            # [mock implemented]
+    get:
+      summary: Student's counselor requests, newest first
+      responses:
+        '200': { description: '{ data: CounselorRequest[] }' }
+    post:
+      summary: '"Talk to my counselor" — creates a request; mock auto-replies with a counselor message'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                topic: { type: string }
+                career_id: { type: string, nullable: true }
+                posting_id: { type: string, nullable: true }
+                body: { type: string }
+      responses:
+        '201': { description: Created CounselorRequest }
+        '400': { description: body required }
+
+  # /careers (Prompt 2) gained query params in Prompt 3:                # [mock implemented]
+  #   sport_friendly=true, near_rgv=true, sector=<key>, rgv_sector=<key>
+  # /students/{id}/deadlines now also unions internship application_deadline
+  # values as kind="application" entries.                               # [mock implemented]
+
+  # ==================== COLLEGE PATHWAY (Prompt 4) ======================
+
+  /students/{studentId}/college-fits:                                  # [mock implemented]
+    get:
+      summary: Computed fit between this student and every college
+      description: >
+        Front-end addition. Scores each college against the student's
+        grades (with provenance), compass openness, gender-aware soccer
+        program match, Racing partnership and Spanish support. Every match
+        carries grades_source so the UI can label confidence
+        ("Based on self-reported grades").
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: One CollegeFitResult per college
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CollegeFitResult' }
+
+  /students/{studentId}/scholarship-outcomes:                          # [mock implemented]
+    get:
+      summary: Recorded scholarship outcomes (scholarship_outcomes SQL table)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Outcome list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ScholarshipOutcome' }
+
+  /students/{studentId}/scholarship-applications/{applicationId}/recommendations:  # [mock implemented]
+    post:
+      summary: Request a recommendation letter for an application
+      description: Adds to materials_checklist.recommendation_letters {requested, received, names[]}.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recommender_name]
+              properties:
+                recommender_name: { type: string }
+      responses:
+        '200': { description: Updated ScholarshipApplication }
+        '400': { description: recommender_name required }
+
+  /students/{studentId}/scholarship-applications/{applicationId}/recommendations/{name}/received:  # [mock implemented]
+    post:
+      summary: Mark a requested recommendation letter as received
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+        - { name: name, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Updated ScholarshipApplication }
+
+  /students/{studentId}/scholarship-applications/{applicationId}/outcome:  # [mock implemented]
+    post:
+      summary: Record the decision on a submitted application
+      description: >
+        Creates a scholarship_outcomes row and moves the application to
+        awarded/denied. Only decidable from submitted / under_review /
+        finalist / waitlisted.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: applicationId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [awarded]
+              properties:
+                awarded: { type: boolean }
+                award_amount: { type: number, nullable: true }
+                decision_date: { type: string, format: date, nullable: true }
+      responses:
+        '201':
+          description: Created ScholarshipOutcome
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScholarshipOutcome' }
+        '409': { description: 'NOT_DECIDABLE: application not in a decidable status' }
+
+  /students/{studentId}/essay-drafts:                                  # [mock implemented]
+    get:
+      summary: Standalone essay drafts (not tied to an application)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: EssayTemplate list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      description: EssayTemplate from the scholarship service spec
+    post:
+      summary: Start a standalone essay draft
+      description: >
+        Student-only. start_with_story=true copies the student's My Story
+        text into student_draft as a starting point. ai_generated_draft
+        stays null — the AI coach is a placeholder ("AI assist – connected
+        later") and never writes the essay.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt_text]
+              properties:
+                prompt_text: { type: string }
+                word_limit: { type: integer, nullable: true }
+                start_with_story: { type: boolean, default: false }
+      responses:
+        '201': { description: Created EssayTemplate }
+        '403': { description: Student role only }
+
+  /students/{studentId}/essay-drafts/{templateId}:                     # [mock implemented]
+    patch:
+      summary: Update student_draft or finalize a standalone essay draft
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: templateId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                student_draft: { type: string }
+                finalized: { type: boolean }
+      responses:
+        '200': { description: Updated EssayTemplate }
+
+  /students/{studentId}/financial-aid-helper:                          # [mock implemented]
+    post:
+      summary: FAFSA/TASFA helper checkpoint — DEMO ONLY
+      description: >
+        Parent-of-child or admin only. The mock accepts the checklist and
+        discards it ({ ok, demo_only: true, stored: false }). No income
+        data is ever collected or stored in this front end.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Acknowledged, nothing stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  demo_only: { type: boolean }
+                  stored: { type: boolean }
+        '403': { description: Parent-of-child or admin only }
+
+  # ==================== SPORTS PATHWAY (Prompt 5) =======================
+
+  /students/{studentId}/recruiting-profile:                            # [mock implemented]
+    get:
+      summary: Assembled recruiting "front page"
+      description: >
+        Front-end addition. Combines athletic_profiles (positions,
+        dominant foot/hand, height/weight, teams), graduation year,
+        achievements and coach endorsements. The academic snapshot is
+        included only when the student consented (grades_for_matching)
+        or the viewer is the student / their parent / staff.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: RecruitingProfile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecruitingProfile' }
+    patch:
+      summary: Update editable recruiting-profile fields
+      description: Student (self) or coach/club staff/admin only.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                positions: { type: array, items: { type: string } }
+                dominant_foot: { type: string, enum: [Left, Right, Both], nullable: true }
+                dominant_hand: { type: string, nullable: true }
+                height_inches: { type: integer, nullable: true }
+                weight_pounds: { type: integer, nullable: true }
+      responses:
+        '200': { description: Updated RecruitingProfile }
+        '403': { description: Self or staff only }
+
+  /students/{studentId}/recruiting-preview:                            # [mock implemented]
+    get:
+      summary: '"See what a scout sees" — consent-stripped preview of self'
+      description: >
+        Returns visible=false when no sports sharing consent is on, plus the
+        current consent flags so the UI can point at the Consent Center.
+        When visible, `result` is exactly the ScoutResult a partner would
+        get — first name + last initial, no contact info.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Scout preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visible: { type: boolean }
+                  result: { $ref: '#/components/schemas/ScoutResult', nullable: true }
+                  consents: { type: object }
+                  videos_visible: { type: boolean }
+
+  /students/{studentId}/performance-timeline:                          # [mock implemented]
+    get:
+      summary: Performance timeline (player_performance_timeline table)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Points sorted by assessment_date
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PerformancePoint' }
+    post:
+      summary: Add a coach-entered assessment point
+      description: Coach/club staff/admin only. Racing 360 imports also append points (source = racing360).
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PerformancePoint' }
+      responses:
+        '201': { description: Created point }
+        '403': { description: Staff only }
+
+  /opportunities:                                                      # [mock implemented]
+    get:
+      summary: Sports opportunity listings in three lanes
+      description: >
+        Front-end addition. lane = college | national | international.
+        All listings are sample data; the UI shows a rules-to-verify box
+        on the national and international lanes (under-18 transfer rules,
+        amateur eligibility, visas, parent consent).
+      parameters:
+        - { name: lane, in: query, schema: { type: string, enum: [college, national, international] } }
+      responses:
+        '200':
+          description: SportOpportunity list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SportOpportunity' }
+
+  /recruiting/search:                                                  # [mock implemented]
+    get:
+      summary: Scout search over recruiting profiles
+      description: >
+        Partner (and staff) only. Returns ONLY students who opted in
+        (sports_to_colleges or sports_to_pro_clubs) and are in pathways
+        mode. Results carry no contact info — first name + last initial.
+      parameters:
+        - { name: position, in: query, schema: { type: string } }
+        - { name: grad_year, in: query, schema: { type: integer } }
+        - { name: level, in: query, schema: { type: string } }
+        - { name: open_to, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: ScoutResult list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ScoutResult' }
+                  total: { type: integer }
+        '403': { description: Partner/staff only }
+
+  /students/{studentId}/contact-requests:                              # [mock implemented]
+    get:
+      summary: Contact requests for a student (student/parent/staff view)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: ContactRequest list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ContactRequest' }
+    post:
+      summary: Partner requests contact
+      description: >
+        Partner role only, and only for opted-in students. Status starts
+        as pending_parent when the player is under 18, else pending_student.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requester_org, message]
+              properties:
+                requester_org: { type: string }
+                requester_role: { type: string, enum: [college, pro_club, employer, training_school] }
+                message: { type: string }
+      responses:
+        '201': { description: Created ContactRequest }
+        '403': { description: Partner only / not opted in }
+
+  /students/{studentId}/contact-requests/{requestId}:                  # [mock implemented]
+    patch:
+      summary: Approve or decline a contact request
+      description: >
+        Student (self) or parent-of-child. For players under 18 only a
+        parent can approve — a student attempting to approve gets
+        403 PARENT_APPROVAL_REQUIRED.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: requestId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action: { type: string, enum: [approve, decline] }
+      responses:
+        '200': { description: Updated ContactRequest }
+        '403': { description: PARENT_APPROVAL_REQUIRED or forbidden }
+
+  # ============ STAFF / PARENT / PARTNER / ADMIN (Prompt 6) ==============
+  # Suggested SQL tables (front-end additions):
+  #   staff_notes (note_id, student_id, author_name, author_role, body, created_at)
+  #   college_enrollments (enrollment_id, student_id, college_id,
+  #     enrollment_year, status)
+  #   signature_documents (doc_id, student_id, title_en/es, status,
+  #     signed_by, signed_at)
+  #   verified_on DATE + verified_by VARCHAR columns on careers, colleges,
+  #     scholarships, sport_opportunities — "needs re-verification" derives
+  #     from verified_on older than 6 months.
+  #   student_documents gains verified_at TIMESTAMP + verified_by VARCHAR.
+  # student_placements already exists in corporate_internships_schema.sql;
+  # outcomes aggregates map to corporate_partner_analytics +
+  # scholarship_outcomes.
+
+  /staff/caseload:                                                     # [mock implemented]
+    get:
+      summary: Coach/counselor caseload — aggregated per pathways student
+      description: >
+        Coach/club staff/admin only. Each row carries pathway_status
+        (career/college/sports counters), the next deadline, missing items
+        and needs-attention flags (missed deadline, grades dropped,
+        consent pending). Flags and missing items are i18n keys.
+      responses:
+        '200':
+          description: CaseloadItem list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/CaseloadItem' } }
+
+  /students/{studentId}/staff-notes:                                   # [mock implemented]
+    get:
+      summary: Staff notes on a student (staff/parent view)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: StaffNote list }
+    post:
+      summary: Add a staff note (coach/club staff/admin)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties: { body: { type: string } }
+      responses:
+        '201': { description: Created StaffNote }
+        '403': { description: Staff only }
+
+  /students/{studentId}/endorsements:                                  # [mock implemented]
+    post:
+      summary: Endorse a player — coach endorsement on the recruiting profile
+      description: Coach/club staff/admin only.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text_en]
+              properties:
+                text_en: { type: string }
+                coach_org: { type: string }
+      responses:
+        '201': { description: Created CoachEndorsement }
+        '403': { description: Staff only }
+
+  /students/{studentId}/documents/{documentId}/verify:                 # [mock implemented]
+    patch:
+      summary: Verify an uploaded transcript/report card
+      description: >
+        Staff only. Stamps verified_at/verified_by; verifying a report
+        card upgrades the student's grade source for matching.
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: documentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Updated StudentDocument }
+        '403': { description: Staff only }
+
+  /staff/bulk-messages:                                                # [mock implemented]
+    post:
+      summary: Bulk message a caseload (EN/ES)
+      description: Staff only. Creates one StudentMessage per student.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_ids, body_en]
+              properties:
+                student_ids: { type: array, items: { type: string } }
+                body_en: { type: string }
+                body_es: { type: string }
+      responses:
+        '201':
+          description: Messages created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { sent: { type: integer } }
+
+  /students/{studentId}/approvals:                                     # [mock implemented]
+    get:
+      summary: Parent approvals inbox — union read model
+      description: >
+        Unions pending consent requests, contact requests from
+        scouts/colleges/employers, and signature documents. Actions go
+        through the existing endpoints (PUT consents, PATCH
+        contact-requests, POST signature-docs sign).
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: ApprovalItem list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ApprovalItem' } }
+
+  /students/{studentId}/signature-docs/{docId}/sign:                   # [mock implemented]
+    post:
+      summary: Sign a document (parent only)
+      parameters:
+        - { name: studentId, in: path, required: true, schema: { type: string } }
+        - { name: docId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Signed SignatureDoc }
+        '403': { description: Parent of child only }
+
+  /partner/me:                                                         # [mock implemented]
+    get:
+      summary: The partner's own organization (demo maps to first partner)
+      responses:
+        '200': { description: CorporatePartner (student-safe subset) }
+        '403': { description: Partner only }
+
+  /partner/postings:                                                   # [mock implemented]
+    get:
+      summary: Partner's own internship/job/class postings
+      responses:
+        '200': { description: InternshipPosting list }
+        '403': { description: Partner only }
+    post:
+      summary: Publish a posting (job, internship or certificate class)
+      responses:
+        '201': { description: Created InternshipPosting }
+        '403': { description: Partner only }
+
+  /partner/postings/{postingId}:                                       # [mock implemented]
+    patch:
+      summary: Edit or close a posting
+      parameters:
+        - { name: postingId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Updated InternshipPosting }
+        '403': { description: Partner only }
+
+  /partner/applicants:                                                 # [mock implemented]
+    get:
+      summary: Applicants to the partner's postings (student-safe)
+      description: First name + last initial only; no contact info.
+      responses:
+        '200': { description: PartnerApplicant list }
+        '403': { description: Partner only }
+
+  /partner/placements:                                                 # [mock implemented]
+    get:
+      summary: Partner's placements (student_placements subset)
+      responses:
+        '200': { description: StudentPlacement list }
+        '403': { description: Partner only }
+
+  /admin/outcomes:                                                     # [mock implemented]
+    get:
+      summary: Aggregate outcomes dashboard for grants/sponsors
+      description: >
+        Admin/club staff only. Students served by pathway, certificates,
+        average weeks to first job, scholarships applied/awarded/dollars,
+        college enrollments, athletes recruited, placements by partner.
+        Aggregate numbers only — never names.
+      parameters:
+        - { name: school, in: query, schema: { type: string } }
+        - { name: grade, in: query, schema: { type: integer } }
+        - { name: year, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: OutcomesReport
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OutcomesReport' }
+
+  /admin/content/{collection}:                                         # [mock implemented]
+    post:
+      summary: Add a catalog record (careers|colleges|scholarships|opportunities)
+      description: Admin only. Stamps verified_on (today) and verified_by.
+      parameters:
+        - { name: collection, in: path, required: true, schema: { type: string, enum: [careers, colleges, scholarships, opportunities] } }
+      responses:
+        '201': { description: Created record }
+        '403': { description: Admin only }
+
+  /admin/content/{collection}/{recordId}:                              # [mock implemented]
+    patch:
+      summary: Edit a catalog record — re-stamps verification
+      parameters:
+        - { name: collection, in: path, required: true, schema: { type: string } }
+        - { name: recordId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Updated record }
+        '403': { description: Admin only }
+
+  # ==================== TALENT INSIGHTS (Prompt 6B) =======================
+  # FC Brownsville CLUB STAFF ONLY — players, parents, partners, scouts AND
+  # admins get a 403. Every response is filtered by:
+  #   1. player registered with FC Brownsville OR attended an FCB tryout, AND
+  #   2. consent key club_player_development granted (parent, or player 18+).
+  # Every request below also writes to the view audit log.
+  #
+  # Suggested tables:
+  #   development_measures(measure_id, student_id, measured_on, source
+  #     [racing360|coach_evaluation|physical_test|match_record], technical,
+  #     tactical, physical, mentality, minutes_pct, attendance_pct, is_sample)
+  #   physical_test_profiles(student_id, speed, agility, endurance, strength,
+  #     measured_on, is_sample)
+  #   tryout_players(tryout_player_id, student_id NULL, first_name, last_name,
+  #     date_of_birth, tryout_date, is_sample)
+  #   tryout_evaluations(evaluation_id, tryout_player_id, evaluator_name,
+  #     technical, tactical, physical, mentality, notes, created_at)
+  #   position_profiles(profile_id, club_id, position, notes, created_by,
+  #     updated_at)
+  #   position_profile_attributes(profile_id, attribute, weight)
+  #   talent_view_log(log_id, viewer_user_id, viewer_name, student_id NULL,
+  #     view, viewed_at)
+  # Suggested columns: none on existing tables. The consent key
+  # club_player_development is a new row value in consent_records.
+  # NOTE: "team level" uses the athletic_profiles.competitive_level column;
+  # the sample data label "Competitive / Travel" maps to Select.
+  /talent/players:                                                     # [mock implemented]
+    get:
+      summary: Player Development Board — all consented club players
+      description: >
+        Club staff only. Returns per-player current level, improvement rate
+        (points/month over the last 6 months), age-adjusted level, birth
+        quarter, team level, minutes and attendance. Players without consent
+        are NEVER returned — only their count (consent_off_count).
+      responses:
+        '200': { description: TalentBoardResponse }
+        '403': { description: Club staff only }
+
+  /talent/players/{student_id}/timeline:                               # [mock implemented]
+    get:
+      summary: One player's standardized measures over time
+      description: Club staff only + consent required. Logged as a player-level view.
+      parameters:
+        - { name: student_id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: '{ summary: TalentPlayerSummary, points: DevelopmentPoint[] }' }
+        '404': { description: Not in the consented club pool }
+
+  /talent/hidden-gems:                                                 # [mock implemented]
+    get:
+      summary: High improvement + strong technical/tactical + overlooked
+      description: >
+        Server-side filter: improvement_rate >= 0.25 AND (technical+tactical)/2
+        >= 6 AND (minutes_pct <= 40 OR team level below Academy). Each gem
+        carries plain-words reasons (i18n key + params).
+      responses:
+        '200': { description: '{ gems: HiddenGem[] }' }
+
+  /talent/tryouts:                                                     # [mock implemented]
+    get:
+      summary: Tryout attendees with evaluations side-by-side
+      description: needs_second_look = any dimension where evaluators differ by 2+ points.
+      responses:
+        '200': { description: '{ players: TryoutPlayer[] }' }
+
+  /talent/tryouts/{tryout_player_id}/evaluations:                      # [mock implemented]
+    post:
+      summary: Submit a rubric evaluation (technical/tactical/physical/mentality, 1-5)
+      responses:
+        '201': { description: Updated TryoutPlayer with recomputed flags }
+
+  /talent/position-profiles:                                           # [mock implemented]
+    get:
+      summary: List coach-defined position profiles
+      responses:
+        '200': { description: '{ profiles: PositionProfile[] }' }
+    post:
+      summary: Create a position profile (attributes with weights 1-5)
+      responses:
+        '201': { description: PositionProfile }
+
+  /talent/position-profiles/{profile_id}:                              # [mock implemented]
+    patch:
+      summary: Edit a position profile
+      responses:
+        '200': { description: PositionProfile }
+
+  /talent/position-profiles/{profile_id}/fits:                         # [mock implemented]
+    get:
+      summary: Weighted 0-100 fit of every consented player against a profile
+      description: Includes players currently playing a different position (plays_elsewhere).
+      responses:
+        '200': { description: '{ fits: PositionFit[] }' }
+
+  /talent/fairness:                                                    # [mock implemented]
+    get:
+      summary: Selection fairness — top-team selection by birth quarter, gender, ZIP
+      responses:
+        '200': { description: FairnessReport }
+
+  /talent/audit:                                                       # [mock implemented]
+    get:
+      summary: View audit log (who viewed which player, when) — latest 50
+      responses:
+        '200': { description: '{ entries: TalentViewLogEntry[] }' }
+
+components:
+  schemas:
+    ConsentRecord:
+      type: object
+      properties:
+        student_id: { type: string }
+        consents:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              key: { type: string }
+              granted: { type: boolean }
+              granted_at: { type: string, format: date-time, nullable: true }
+              granted_by_role: { type: string, nullable: true }
+        access_log:
+          type: array
+          items:
+            type: object
+            properties:
+              party: { type: string }
+              scope: { type: string }
+              since: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time }
+    CollegeFitResult:
+      type: object
+      description: Computed school fit — front-end addition (Prompt 4)
+      properties:
+        college_id: { type: string }
+        fit: { type: string, enum: [strong, good, explore] }
+        gpa_ok: { type: boolean, nullable: true, description: 'null = no grades on file' }
+        why_en: { type: array, items: { type: string } }
+        why_es: { type: array, items: { type: string } }
+        missing_en: { type: array, items: { type: string } }
+        missing_es: { type: array, items: { type: string } }
+        grades_source:
+          type: string
+          enum: [self_reported, report_card, school_import, none]
+          description: Grade provenance for confidence labels
+    ScholarshipOutcome:
+      type: object
+      description: Mirrors scholarship_outcomes SQL table
+      properties:
+        outcome_id: { type: string }
+        application_id: { type: string }
+        student_id: { type: string }
+        scholarship_id: { type: string }
+        awarded: { type: boolean }
+        award_year: { type: integer }
+        award_amount: { type: number, nullable: true }
+        decision_date: { type: string, format: date }
+        notes: { type: string, nullable: true }
+        scholarship:
+          type: object
+          description: Embedded Scholarship from the scholarship service spec
+    Racing360Report:
+      type: object
+      properties:
+        report_id: { type: string }
+        student_id: { type: string }
+        report_date: { type: string, format: date }
+        source: { type: string, description: 'Racing 360 (SAMPLE – field names to confirm)' }
+        file_url: { type: string, nullable: true }
+        coach_notes: { type: string, nullable: true }
+        metrics:
+          type: object
+          description: Field names to confirm with vendor
+        created_at: { type: string, format: date-time }
+
+    # ---- Prompt 5 (sports pathway) ----
+    # Suggested SQL tables (front-end additions):
+    #   sport_opportunities (opportunity_id, lane, sport, title_en/es,
+    #     org_name, level_en/es, age_min/max, location_en/es, country,
+    #     dates_en/es, cost_usd, cost_note_en/es, requirements jsonb)
+    #   coach_endorsements (endorsement_id, student_id, coach_name,
+    #     coach_org, text, created_at)
+    #   recruiting_achievements (achievement_id, student_id, text, year)
+    #   contact_requests (request_id, student_id, requester_org,
+    #     requester_role, message, status, created_at)
+    # player_performance_timeline already exists in video_media_schema.sql;
+    # PerformancePoint.source is the only extra column to add there.
+    PerformancePoint:
+      type: object
+      description: Mirrors player_performance_timeline + source column
+      properties:
+        timeline_id: { type: string }
+        student_id: { type: string }
+        assessment_date: { type: string, format: date }
+        season: { type: string, nullable: true }
+        overall_rating: { type: number, nullable: true }
+        technical_skills: { type: number, nullable: true }
+        tactical_awareness: { type: number, nullable: true }
+        physical_fitness: { type: number, nullable: true }
+        mental_toughness: { type: number, nullable: true }
+        trajectory: { type: string, nullable: true }
+        assessment_notes: { type: string, nullable: true }
+        coach_observations: { type: string, nullable: true }
+        source: { type: string, enum: [video_analysis, racing360, coach_entry], description: FRONT-END ADDITION }
+        created_at: { type: string, format: date-time }
+    RecruitingProfile:
+      type: object
+      description: Assembled view — no single table
+      properties:
+        student_id: { type: string }
+        sport: { type: string }
+        positions: { type: array, items: { type: string } }
+        dominant_foot: { type: string, nullable: true }
+        dominant_hand: { type: string, nullable: true }
+        height_inches: { type: integer, nullable: true }
+        weight_pounds: { type: integer, nullable: true }
+        teams: { type: array, items: { type: object } }
+        grad_year: { type: integer, nullable: true }
+        skill_level: { type: string, nullable: true }
+        academic_snapshot: { type: object, nullable: true, description: Only with consent }
+        achievements: { type: array, items: { type: object } }
+        endorsements: { type: array, items: { type: object } }
+        video_count: { type: integer }
+        highlight_count: { type: integer }
+        is_sample: { type: boolean }
+    SportOpportunity:
+      type: object
+      properties:
+        opportunity_id: { type: string }
+        lane: { type: string, enum: [college, national, international] }
+        sport: { type: string }
+        title_en: { type: string }
+        title_es: { type: string }
+        org_name: { type: string }
+        level_en: { type: string }
+        level_es: { type: string }
+        age_min: { type: integer }
+        age_max: { type: integer }
+        location_en: { type: string }
+        location_es: { type: string }
+        country: { type: string }
+        dates_en: { type: string }
+        dates_es: { type: string }
+        cost_usd: { type: number, nullable: true }
+        requirements_en: { type: array, items: { type: string } }
+        requirements_es: { type: array, items: { type: string } }
+        is_sample: { type: boolean }
+    ScoutResult:
+      type: object
+      description: What a scout sees — no contact info, first name + last initial
+      properties:
+        student_id: { type: string }
+        display_name: { type: string }
+        age: { type: integer, nullable: true }
+        grad_year: { type: integer, nullable: true }
+        gender: { type: string, nullable: true }
+        sport: { type: string }
+        positions: { type: array, items: { type: string } }
+        competitive_level: { type: string, nullable: true }
+        team_name: { type: string, nullable: true }
+        height_inches: { type: integer, nullable: true }
+        overall_rating: { type: number, nullable: true }
+        open_to: { type: array, items: { type: string } }
+        under_18: { type: boolean }
+        is_sample: { type: boolean }
+    ContactRequest:
+      type: object
+      properties:
+        request_id: { type: string }
+        student_id: { type: string }
+        requester_org: { type: string }
+        requester_role: { type: string, enum: [college, pro_club, employer, training_school] }
+        message: { type: string }
+        status: { type: string, enum: [pending_parent, pending_student, approved, declined] }
+        created_at: { type: string, format: date-time }
+
+    # ---- Prompt 6 (staff / partner / admin) ----
+    CaseloadItem:
+      type: object
+      description: Aggregated coach/counselor caseload row (computed view)
+      properties:
+        student_id: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        grade_level: { type: integer, nullable: true }
+        school_name: { type: string, nullable: true }
+        app_mode: { type: string }
+        pathway_status: { type: object }
+        next_deadline: { type: object, nullable: true }
+        missing_items: { type: array, items: { type: string }, description: i18n keys }
+        needs_attention: { type: array, items: { type: string }, description: i18n keys }
+    StaffNote:
+      type: object
+      properties:
+        note_id: { type: string }
+        student_id: { type: string }
+        author_name: { type: string }
+        author_role: { type: string, enum: [coach, club_staff, admin] }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+    StudentPlacement:
+      type: object
+      description: student_placements subset (no supervisor contacts)
+      properties:
+        placement_id: { type: string }
+        student_id: { type: string }
+        partner_id: { type: string }
+        posting_id: { type: string, nullable: true }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        actual_end_date: { type: string, format: date, nullable: true }
+        job_title: { type: string }
+        completion_status: { type: string, enum: [active, completed, ended_early] }
+        offered_full_time: { type: boolean, nullable: true }
+        accepted_full_time: { type: boolean, nullable: true }
+        pay_rate: { type: number, nullable: true }
+    CollegeEnrollment:
+      type: object
+      properties:
+        enrollment_id: { type: string }
+        student_id: { type: string }
+        college_id: { type: string }
+        enrollment_year: { type: integer }
+        status: { type: string, enum: [enrolled, attending] }
+    SignatureDoc:
+      type: object
+      properties:
+        doc_id: { type: string }
+        student_id: { type: string }
+        title_en: { type: string }
+        title_es: { type: string }
+        status: { type: string, enum: [pending, signed] }
+        signed_by: { type: string, nullable: true }
+        signed_at: { type: string, format: date-time, nullable: true }
+    ApprovalItem:
+      type: object
+      description: Union read model — consents, contact requests, signatures
+      properties:
+        item_id: { type: string }
+        kind: { type: string, enum: [contact_request, consent, signature] }
+        ref_id: { type: string }
+        title_en: { type: string }
+        title_es: { type: string }
+        detail_en: { type: string }
+        detail_es: { type: string }
+        status: { type: string, enum: [pending, approved, declined, signed, granted] }
+        created_at: { type: string, format: date-time }
+    OutcomesReport:
+      type: object
+      description: Aggregates only — no student identifiers
+      properties:
+        filters: { type: object }
+        students_served: { type: integer }
+        by_pathway:
+          type: object
+          properties:
+            career: { type: integer }
+            college: { type: integer }
+            sports: { type: integer }
+        certificates_earned: { type: integer }
+        avg_weeks_to_first_job: { type: number, nullable: true }
+        scholarships:
+          type: object
+          properties:
+            applied: { type: integer }
+            awarded: { type: integer }
+            dollars: { type: number }
+        college_enrollments: { type: integer }
+        athletes_recruited: { type: integer }
+        placements_by_partner:
+          type: array
+          items:
+            type: object
+            properties:
+              partner_id: { type: string }
+              partner_name: { type: string }
+              placements: { type: integer }
+              completed: { type: integer }
+              converted_to_full_time: { type: integer }
+        generated_at: { type: string, format: date-time }
+    PartnerApplicant:
+      type: object
+      properties:
+        application_id: { type: string }
+        posting_id: { type: string }
+        posting_title: { type: string }
+        student_display: { type: string, description: First name + last initial }
+        status: { type: string }
+        applied_at: { type: string, format: date-time }
+
+    # -------------------- TALENT INSIGHTS (Prompt 6B) --------------------
+    DevelopmentPoint:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        source: { type: string, enum: [racing360, coach_evaluation, physical_test, match_record] }
+        technical: { type: number, nullable: true, description: 1-10 standardized }
+        tactical: { type: number, nullable: true }
+        physical: { type: number, nullable: true }
+        mentality: { type: number, nullable: true }
+        minutes_pct: { type: integer, nullable: true }
+        attendance_pct: { type: integer, nullable: true }
+    TalentPlayerSummary:
+      type: object
+      properties:
+        student_id: { type: string }
+        first_name: { type: string }
+        last_name: { type: string }
+        birth_year: { type: integer }
+        birth_quarter: { type: integer, enum: [1, 2, 3, 4], description: 1=Jan-Mar .. 4=Oct-Dec }
+        gender: { type: string, nullable: true }
+        zip_code: { type: string, nullable: true }
+        primary_position: { type: string, nullable: true }
+        team: { type: string, nullable: true }
+        team_level: { type: string, nullable: true, description: athletic_profiles.competitive_level }
+        current_level: { type: number, description: 1-10, average of latest standardized scores }
+        improvement_rate: { type: number, description: points per month, last 6 months }
+        age_adjusted_level: { type: number, description: current + 0.25 per later birth quarter (heuristic) }
+        minutes_pct: { type: integer, nullable: true }
+        attendance_pct: { type: integer, nullable: true }
+        latest_scores:
+          type: object
+          properties:
+            technical: { type: number }
+            tactical: { type: number }
+            physical: { type: number }
+            mentality: { type: number }
+        last_measure_date: { type: string, format: date }
+    TalentBoardResponse:
+      type: object
+      properties:
+        players:
+          type: array
+          items: { $ref: '#/components/schemas/TalentPlayerSummary' }
+        consent_off_count: { type: integer, description: club players without consent — never listed }
+    HiddenGem:
+      allOf:
+        - $ref: '#/components/schemas/TalentPlayerSummary'
+        - type: object
+          properties:
+            reasons:
+              type: array
+              items:
+                type: object
+                properties:
+                  key: { type: string, enum: [improved_dim, low_minutes, low_team_level, strong_ratings] }
+                  params: { type: object, additionalProperties: true }
+    TryoutEvaluation:
+      type: object
+      properties:
+        evaluation_id: { type: string }
+        tryout_player_id: { type: string }
+        evaluator_name: { type: string }
+        technical: { type: integer, minimum: 1, maximum: 5 }
+        tactical: { type: integer, minimum: 1, maximum: 5 }
+        physical: { type: integer, minimum: 1, maximum: 5 }
+        mentality: { type: integer, minimum: 1, maximum: 5 }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+    TryoutPlayer:
+      type: object
+      properties:
+        tryout_player_id: { type: string }
+        student_id: { type: string, nullable: true }
+        first_name: { type: string }
+        last_name: { type: string }
+        birth_year: { type: integer }
+        birth_quarter: { type: integer, enum: [1, 2, 3, 4] }
+        tryout_date: { type: string, format: date }
+        evaluations:
+          type: array
+          items: { $ref: '#/components/schemas/TryoutEvaluation' }
+        needs_second_look: { type: boolean }
+        disagreement_dims:
+          type: array
+          items: { type: string, enum: [technical, tactical, physical, mentality] }
+    PositionProfile:
+      type: object
+      properties:
+        profile_id: { type: string }
+        position: { type: string }
+        attributes:
+          type: array
+          items:
+            type: object
+            properties:
+              attribute: { type: string, enum: [technical, tactical, physical, mentality, speed, agility, endurance, strength] }
+              weight: { type: integer, minimum: 1, maximum: 5 }
+        notes: { type: string, nullable: true }
+        created_by: { type: string }
+        updated_at: { type: string, format: date-time }
+    PositionFit:
+      type: object
+      properties:
+        player: { $ref: '#/components/schemas/TalentPlayerSummary' }
+        fit_score: { type: integer, description: 0-100 weighted match }
+        plays_elsewhere: { type: boolean }
+        top_matches:
+          type: array
+          items: { type: string }
+    FairnessGroup:
+      type: object
+      properties:
+        label: { type: string }
+        selected: { type: integer }
+        pool: { type: integer }
+        rate: { type: number, nullable: true }
+    FairnessReport:
+      type: object
+      properties:
+        by_birth_quarter:
+          type: array
+          items: { $ref: '#/components/schemas/FairnessGroup' }
+        by_gender:
+          type: array
+          items: { $ref: '#/components/schemas/FairnessGroup' }
+        by_zip:
+          type: array
+          items: { $ref: '#/components/schemas/FairnessGroup' }
+        selected_definition: { type: string }
+    TalentViewLogEntry:
+      type: object
+      properties:
+        log_id: { type: string }
+        viewer_name: { type: string }
+        viewer_role: { type: string }
+        student_id: { type: string, nullable: true }
+        player_name: { type: string, nullable: true }
+        view: { type: string }
+        viewed_at: { type: string, format: date-time }
