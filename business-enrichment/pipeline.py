@@ -313,6 +313,7 @@ def process_file(path, clients, settings, failures, budget):
         "enriched_explorium": 0,
         "enriched_apify_dnb": 0,
         "enriched_osm": 0,
+        "enriched_sec_edgar": 0,
         "employees_enriched": 0,
         "match_failures": 0,
         "api_errors": 0,
@@ -526,9 +527,9 @@ def run_pipeline(settings, only_file=None):
             all_stats.append({"file": path.name, "records_processed": 0,
                               "naics_already_reported": 0, "enriched_bizapi": 0,
                               "enriched_explorium": 0, "enriched_apify_dnb": 0,
-                              "enriched_osm": 0, "employees_enriched": 0,
-                              "match_failures": 0, "api_errors": 0,
-                              "skipped_budget": 0})
+                              "enriched_osm": 0, "enriched_sec_edgar": 0,
+                              "employees_enriched": 0, "match_failures": 0,
+                              "api_errors": 0, "skipped_budget": 0})
             continue
         # Flush any client-side caches after each file so progress survives
         # interruptions (matters for slow free sources like Nominatim).
@@ -558,6 +559,7 @@ def run_pipeline(settings, only_file=None):
 def write_summary(all_stats, output_dir):
     cols = [
         "file", "records_processed", "naics_already_reported",
+        "enriched_sec_edgar",
         "enriched_bizapi", "enriched_explorium", "enriched_apify_dnb",
         "enriched_osm",
         "employees_enriched", "match_failures", "api_errors", "skipped_budget",

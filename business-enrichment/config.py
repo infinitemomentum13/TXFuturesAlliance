@@ -86,6 +86,11 @@ class Settings:
         default_factory=lambda: _get_int("APIFY_RUN_TIMEOUT", 900)
     )
 
+    # SEC EDGAR bulk registrant index (free, no key, local lookups)
+    # Provides NAICS via SIC crosswalk for entities that ever filed with
+    # the SEC. Build once with scripts/build_edgar_index.py.
+    edgar_enabled: bool = field(default_factory=lambda: _get_bool("EDGAR_ENABLED", True))
+
     # OpenStreetMap Nominatim (free backstop: NAICS only, no key required)
     osm_enabled: bool = field(default_factory=lambda: _get_bool("OSM_ENABLED", True))
     osm_user_agent: str = field(
@@ -137,8 +142,10 @@ class Settings:
         backstop last so it can rescue records the paid sources missed.
         """
         if self.mock_mode:
-            return ["bizapi", "explorium", "apify_dnb", "osm"]
+            return ["sec_edgar", "bizapi", "explorium", "apify_dnb", "osm"]
         sources = []
+        if self.edgar_enabled:
+            sources.append("sec_edgar")  # local index — free, instant, no key
         if self.bizapi_username and self.bizapi_password:
             sources.append("bizapi")
         if self.explorium_api_key:

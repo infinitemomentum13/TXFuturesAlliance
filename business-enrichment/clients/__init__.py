@@ -7,10 +7,12 @@ from .base import BaseClient, Candidate, ClientError, RateLimiter, TransientErro
 from .bizapi import BizAPIClient
 from .explorium import ExploriumClient
 from .osm_nominatim import OSMNominatimClient
+from .sec_edgar import SECEdgarClient
 
 logger = logging.getLogger(__name__)
 
 REAL_CLIENTS = {
+    "sec_edgar": SECEdgarClient,
     "bizapi": BizAPIClient,
     "explorium": ExploriumClient,
     "apify_dnb": ApifyDNBClient,
@@ -18,6 +20,7 @@ REAL_CLIENTS = {
 }
 
 _RATE_LIMITS = {
+    "sec_edgar": lambda s: 0,    # local index — no rate limit
     "bizapi": lambda s: s.bizapi_rate_limit_rps,
     "explorium": lambda s: s.explorium_rate_limit_rps,
     "apify_dnb": lambda s: 0.5,  # scraper runs are heavyweight; be gentle

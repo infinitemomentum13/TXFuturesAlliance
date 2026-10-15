@@ -26,6 +26,7 @@ from .base import TransientError
 from .bizapi import BizAPIClient
 from .explorium import ExploriumClient
 from .osm_nominatim import OSMNominatimClient
+from .sec_edgar import SECEdgarClient
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,28 @@ class _MockMixin:
 
     def _outcome(self, record):
         return _bucket(self._source, str(record["name"]))
+
+
+class MockSECEdgarClient(_MockMixin, SECEdgarClient):
+    _source = "sec_edgar"
+    name = "sec_edgar"
+
+    def lookup(self, record):
+        from .base import Candidate
+        bucket = self._outcome(record)
+        if bucket < 40:  # most taxpayer records aren't SEC filers
+            return []
+        name, _, naics, zip_code = _mock_identity(record, self._source, bucket)
+        return [
+            Candidate(
+                name=name,
+                naics_code=naics or "541990",
+                employees=None,
+                state="TX",
+                zip=zip_code,
+                raw={"cik": "mock{:07d}".format(bucket * 13777 % 9999999)},
+            )
+        ]
 
 
 class MockBizAPIClient(_MockMixin, BizAPIClient):
@@ -170,7 +193,10 @@ class MockApifyDNBClient(_MockMixin, ApifyDNBClient):
             self.queries_used += 1
             if bucket < 35:  # transient/no-match buckets produce nothing
                 continue
-            fake_record = {"name": q, "city": city or "", "state": state or "TX"}
+            fake_record = {
+                "name": q, "city": city or "", "state": state or "TX",
+                "zip": "",
+            }
             name, employees, naics, zip_code = _mock_identity(
                 fake_record, self._source, bucket
             )
@@ -232,6 +258,7 @@ class MockOSMClient(_MockMixin, OSMNominatimClient):
 
 
 MOCK_CLIENTS = {
+    "sec_edgar": MockSECEdgarClient,
     "bizapi": MockBizAPIClient,
     "explorium": MockExploriumClient,
     "apify_dnb": MockApifyDNBClient,
