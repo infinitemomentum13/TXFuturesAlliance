@@ -69,6 +69,7 @@ class Settings:
     )
 
     # Apify D&B scraper (tertiary, batch mode — actor runs take minutes)
+    apify_enabled: bool = field(default_factory=lambda: _get_bool("APIFY_ENABLED", True))
     apify_token: str = field(default_factory=lambda: os.getenv("APIFY_TOKEN", ""))
     apify_dnb_actor: str = field(
         default_factory=lambda: os.getenv("APIFY_DNB_ACTOR", "memo23~dnb-scraper")
@@ -90,6 +91,16 @@ class Settings:
     # Provides NAICS via SIC crosswalk for entities that ever filed with
     # the SEC. Build once with scripts/build_edgar_index.py.
     edgar_enabled: bool = field(default_factory=lambda: _get_bool("EDGAR_ENABLED", True))
+
+    # Keyword-in-name NAICS inference (free, local, labeled "name_rule")
+    name_rules_enabled: bool = field(
+        default_factory=lambda: _get_bool("NAME_RULES_ENABLED", True)
+    )
+
+    # Census CBP employee estimates for rows still missing real counts
+    employee_estimates_enabled: bool = field(
+        default_factory=lambda: _get_bool("EMPLOYEE_ESTIMATES_ENABLED", True)
+    )
 
     # OpenStreetMap Nominatim (free backstop: NAICS only, no key required)
     osm_enabled: bool = field(default_factory=lambda: _get_bool("OSM_ENABLED", True))
@@ -142,7 +153,8 @@ class Settings:
         backstop last so it can rescue records the paid sources missed.
         """
         if self.mock_mode:
-            return ["sec_edgar", "bizapi", "explorium", "apify_dnb", "osm"]
+            return ["sec_edgar", "bizapi", "explorium", "name_rule",
+                    "osm", "apify_dnb"]
         sources = []
         if self.edgar_enabled:
             sources.append("sec_edgar")  # local index — free, instant, no key
@@ -150,10 +162,14 @@ class Settings:
             sources.append("bizapi")
         if self.explorium_api_key:
             sources.append("explorium")
-        if self.apify_token:
-            sources.append("apify_dnb")
+        if self.name_rules_enabled:
+            # Inferred (not sourced) — runs after paid APIs so verified
+            # NAICS wins, but before OSM to save a network call.
+            sources.append("name_rule")
         if self.osm_enabled:
             sources.append("osm")
+        if self.apify_enabled and self.apify_token:
+            sources.append("apify_dnb")
         return sources
 
 

@@ -39,6 +39,7 @@ def _load_sic_crosswalk(path):
 class SECEdgarClient(BaseClient):
     name = "sec_edgar"
     provides = ("naics",)  # EDGAR carries no employee data
+    local = True
 
     def __init__(self, settings, index_file=None, crosswalk_file=None):
         super().__init__(settings)

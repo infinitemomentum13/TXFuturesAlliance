@@ -25,6 +25,7 @@ from .apify_dnb import ApifyDNBClient
 from .base import TransientError
 from .bizapi import BizAPIClient
 from .explorium import ExploriumClient
+from .name_rules import NameRulesClient
 from .osm_nominatim import OSMNominatimClient
 from .sec_edgar import SECEdgarClient
 
@@ -261,6 +262,8 @@ MOCK_CLIENTS = {
     "sec_edgar": MockSECEdgarClient,
     "bizapi": MockBizAPIClient,
     "explorium": MockExploriumClient,
-    "apify_dnb": MockApifyDNBClient,
+    # name_rule is deterministic keyword inference — no HTTP to mock.
+    "name_rule": NameRulesClient,
     "osm": MockOSMClient,
+    "apify_dnb": MockApifyDNBClient,
 }

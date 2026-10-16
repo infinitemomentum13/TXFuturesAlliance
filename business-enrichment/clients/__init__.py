@@ -6,6 +6,7 @@ from .apify_dnb import ApifyDNBClient
 from .base import BaseClient, Candidate, ClientError, RateLimiter, TransientError
 from .bizapi import BizAPIClient
 from .explorium import ExploriumClient
+from .name_rules import NameRulesClient
 from .osm_nominatim import OSMNominatimClient
 from .sec_edgar import SECEdgarClient
 
@@ -15,16 +16,18 @@ REAL_CLIENTS = {
     "sec_edgar": SECEdgarClient,
     "bizapi": BizAPIClient,
     "explorium": ExploriumClient,
-    "apify_dnb": ApifyDNBClient,
+    "name_rule": NameRulesClient,
     "osm": OSMNominatimClient,
+    "apify_dnb": ApifyDNBClient,
 }
 
 _RATE_LIMITS = {
     "sec_edgar": lambda s: 0,    # local index — no rate limit
     "bizapi": lambda s: s.bizapi_rate_limit_rps,
     "explorium": lambda s: s.explorium_rate_limit_rps,
-    "apify_dnb": lambda s: 0.5,  # scraper runs are heavyweight; be gentle
+    "name_rule": lambda s: 0,    # local keyword inference
     "osm": lambda s: s.osm_rate_limit_rps,  # Nominatim policy: max 1 req/s
+    "apify_dnb": lambda s: 0.5,  # scraper runs are heavyweight; be gentle
 }
 
 

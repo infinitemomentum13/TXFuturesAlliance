@@ -37,6 +37,8 @@ ENRICHMENT_COLUMNS = [
     "NAICS_Source",
     "Employee_Count",
     "Employee_Count_Source",
+    "Employee_Estimate",
+    "Employee_Estimate_Source",
     "Match_Confidence",
 ]
 
@@ -84,6 +86,7 @@ COLUMN_PATTERNS = {
     "state": ["taxpayer state"],
     "zip": ["taxpayer zip"],
     "naics": ["naics code", "naics"],
+    "county": ["taxpayer county code", "county code"],
 }
 REQUIRED_FIELDS = ["name", "address", "city", "state", "zip"]
 
@@ -166,6 +169,7 @@ def row_to_record(row, mapping):
         "city": str(row.get(mapping["city"], "") or "").strip(),
         "state": str(row.get(mapping["state"], "") or "").strip(),
         "zip": extract_zip5(row.get(mapping["zip"])),
+        "county_code": str(row.get(mapping.get("county", ""), "") or ""),
         "reported_naics": clean_naics(row.get(mapping.get("naics", ""))),
         "query_string": "",  # filled by caller
     }
@@ -249,10 +253,13 @@ def enrich_record(record, clients, settings, budget):
             needed.add("employees")
         if not provides & needed:
             continue
-        if budget["remaining"] <= 0:
-            errors.append(("pipeline", "MAX_API_CALLS_PER_RUN budget exhausted"))
-            break
-        budget["remaining"] -= 1
+        if not getattr(client, "local", False):
+            if budget["remaining"] <= 0:
+                errors.append(
+                    ("pipeline", "MAX_API_CALLS_PER_RUN budget exhausted")
+                )
+                break
+            budget["remaining"] -= 1
 
         try:
             candidates = client.lookup(record)
@@ -290,7 +297,10 @@ def enrich_record(record, clients, settings, budget):
             contributed = True
         if contributed:
             result["contributed_sources"].append(client.name)
-            result["confidence"] = max(score, result["confidence"] or 0)
+            # Inferred sources may cap display confidence below the raw
+            # similarity score (e.g. name_rule self-matches at ~100).
+            shown = getattr(best, "confidence", None) or score
+            result["confidence"] = max(shown, result["confidence"] or 0)
         else:
             errors.append(
                 (client.name, "matched but added no new fields")
@@ -314,13 +324,16 @@ def process_file(path, clients, settings, failures, budget):
         "enriched_apify_dnb": 0,
         "enriched_osm": 0,
         "enriched_sec_edgar": 0,
+        "enriched_name_rule": 0,
         "employees_enriched": 0,
+        "employee_estimates": 0,
         "match_failures": 0,
         "api_errors": 0,
         "skipped_budget": 0,
     }
 
     out_rows = {c: [] for c in ENRICHMENT_COLUMNS}
+    row_counties = []  # comptroller county code per output row
     pending_batch = []  # (row_position, record) still missing fields
     for idx, row in df.iterrows():
         stats["records_processed"] += 1
@@ -372,7 +385,10 @@ def process_file(path, clients, settings, failures, budget):
         out_rows["NAICS_Source"].append(naics_source)
         out_rows["Employee_Count"].append(employees)
         out_rows["Employee_Count_Source"].append(employees_source)
+        out_rows["Employee_Estimate"].append("")
+        out_rows["Employee_Estimate_Source"].append("")
         out_rows["Match_Confidence"].append(confidence)
+        row_counties.append(record["county_code"])
 
         if stats["records_processed"] % 100 == 0:
             logger.info(
@@ -387,6 +403,23 @@ def process_file(path, clients, settings, failures, budget):
             batch_clients, pending_batch, out_rows, stats,
             settings, failures, path.name,
         )
+
+    # ---- employee-estimate pass (Census CBP county averages) ----------
+    # Only fills Employee_Estimate for rows with a NAICS but no real
+    # employee count. Clearly labeled as an estimate.
+    if settings.employee_estimates_enabled:
+        from estimator import county_fips, estimate
+        for i in range(len(out_rows["Employee_Count"])):
+            if out_rows["Employee_Count"][i] not in ("", None):
+                continue
+            naics = out_rows["NAICS_Code_Enriched"][i]
+            if not naics:
+                continue
+            val = estimate(naics, county_fips(row_counties[i]))
+            if val is not None:
+                out_rows["Employee_Estimate"][i] = val
+                out_rows["Employee_Estimate_Source"][i] = "cbp2022_county_avg"
+                stats["employee_estimates"] += 1
 
     for col, values in out_rows.items():
         df[col] = values
@@ -528,8 +561,10 @@ def run_pipeline(settings, only_file=None):
                               "naics_already_reported": 0, "enriched_bizapi": 0,
                               "enriched_explorium": 0, "enriched_apify_dnb": 0,
                               "enriched_osm": 0, "enriched_sec_edgar": 0,
-                              "employees_enriched": 0, "match_failures": 0,
-                              "api_errors": 0, "skipped_budget": 0})
+                              "enriched_name_rule": 0,
+                              "employees_enriched": 0, "employee_estimates": 0,
+                              "match_failures": 0, "api_errors": 0,
+                              "skipped_budget": 0})
             continue
         # Flush any client-side caches after each file so progress survives
         # interruptions (matters for slow free sources like Nominatim).
@@ -560,9 +595,10 @@ def write_summary(all_stats, output_dir):
     cols = [
         "file", "records_processed", "naics_already_reported",
         "enriched_sec_edgar",
-        "enriched_bizapi", "enriched_explorium", "enriched_apify_dnb",
-        "enriched_osm",
-        "employees_enriched", "match_failures", "api_errors", "skipped_budget",
+        "enriched_bizapi", "enriched_explorium", "enriched_name_rule",
+        "enriched_osm", "enriched_apify_dnb",
+        "employees_enriched", "employee_estimates",
+        "match_failures", "api_errors", "skipped_budget",
     ]
     total = {"file": "TOTAL"}
     for c in cols[1:]:

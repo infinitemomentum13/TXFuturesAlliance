@@ -37,6 +37,9 @@ class Candidate:
     state: str = ""
     zip: str = ""
     duns: Optional[str] = None
+    # Optional display-confidence override for inferred (non-sourced)
+    # matches, e.g. keyword rules that "match" the record's own name.
+    confidence: Optional[float] = None
     raw: dict = field(default_factory=dict)
 
 
@@ -66,6 +69,7 @@ class BaseClient:
 
     name = "base"
     provides = ("naics", "employees")
+    local = False  # True for sources that make no network/API calls
 
     def __init__(self, settings, rate_limiter=None):
         self.settings = settings
